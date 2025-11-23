@@ -1,15 +1,11 @@
 package teamfive.user.service;
 
-import java.util.List;
-import java.util.Optional;
-
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import lombok.RequiredArgsConstructor;
 import teamfive.exception.DuplicatedException;
 import teamfive.exception.NotFoundException;
 import teamfive.user.dto.UserDto;
@@ -18,6 +14,9 @@ import teamfive.user.dto.UserUpdateDto;
 import teamfive.user.mapper.UserMapper;
 import teamfive.user.model.User;
 import teamfive.user.repository.UserRepository;
+
+import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service

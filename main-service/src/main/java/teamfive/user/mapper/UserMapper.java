@@ -1,8 +1,8 @@
 package teamfive.user.mapper;
 
+import org.mapstruct.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.mapstruct.*;
 import teamfive.user.dto.UserDto;
 import teamfive.user.dto.UserRequestDto;
 import teamfive.user.dto.UserUpdateDto;
