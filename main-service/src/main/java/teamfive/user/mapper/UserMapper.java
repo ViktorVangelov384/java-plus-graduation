@@ -13,7 +13,9 @@ import java.util.stream.Collectors;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface UserMapper {
+
     User fromDto(UserRequestDto userDto);
+
     UserDto toDto(User user);
 
     default List<UserDto> toDtoList(List<User> users) {
