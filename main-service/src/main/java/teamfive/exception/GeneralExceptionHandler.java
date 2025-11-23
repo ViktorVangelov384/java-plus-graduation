@@ -1,12 +1,15 @@
 package teamfive.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 @Slf4j
 @RestControllerAdvice
@@ -15,17 +18,17 @@ public class GeneralExceptionHandler {
     @ExceptionHandler
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse notFoundException(final NotFoundException e) {
-        String reason = "Запрашиваемый объект не найден";
+        String reason = "The required object was not found.";
         log.error("{}. {}", reason, e.getMessage());
-        return new ErrorResponse(HttpStatus.NOT_FOUND, reason, e.getMessage());
+        return new ErrorResponse(HttpStatus.NOT_FOUND, reason, e.getMessage(), getStackTrace(e));
     }
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse duplicatedException(final DuplicatedException e) {
-        String reason = "В базе данный уже есть такой объект";
+        String reason = "The object already exists";
         log.error("{}. {}", reason, e.getMessage());
-        return new ErrorResponse(HttpStatus.CONFLICT, reason, e.getMessage());
+        return new ErrorResponse(HttpStatus.CONFLICT, reason, e.getMessage(), getStackTrace(e));
     }
 
     @ExceptionHandler
@@ -33,9 +36,10 @@ public class GeneralExceptionHandler {
     public ErrorResponse validationException(final ValidationException e) {
         String reason = "Данные не прошли проверку";
         log.error("{}. {}", reason, e.getMessage());
-        return new ErrorResponse(HttpStatus.BAD_REQUEST, reason, e.getMessage());
+        return new ErrorResponse(HttpStatus.BAD_REQUEST, reason, e.getMessage(), getStackTrace(e));
     }
 
+    //ToDO: Андрей - обсудить с Кириллом, что это? и зачем?
     // Добавил что бы обновление проверить можно и убрать
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleUserNotFound(MethodArgumentNotValidException ex) {
@@ -43,5 +47,12 @@ public class GeneralExceptionHandler {
         problem.setTitle("Ошибка валидации.");
         problem.setProperty("error", "Ошибка валидации.");
         return problem;
+    }
+
+    private String getStackTrace(Exception e) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        e.printStackTrace(pw);
+        return sw.toString();
     }
 }

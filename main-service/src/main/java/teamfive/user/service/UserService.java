@@ -1,12 +1,12 @@
 package teamfive.user.service;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import teamfive.user.dto.UserDto;
 import teamfive.user.dto.UserRequestDto;
 import teamfive.user.dto.UserUpdateDto;
+
+import java.util.List;
 
 
 public interface UserService {

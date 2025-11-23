@@ -1,12 +1,12 @@
 package teamfive.exception;
 
-import java.time.LocalDateTime;
-import org.springframework.http.HttpStatus;
-
 import com.fasterxml.jackson.annotation.JsonFormat;
-
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @RequiredArgsConstructor
@@ -16,11 +16,14 @@ public class ErrorResponse {
     private String message; // Сообщение об ошибке
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime timeStamp = LocalDateTime.now();
+    private final LocalDateTime timeStamp = LocalDateTime.now();
 
-    public ErrorResponse(HttpStatus status, String reason, String message) {
+    List<String> errors;
+
+    public ErrorResponse(HttpStatus status, String reason, String message, String stackTrace) {
         this.status = status;
         this.reason = reason;
         this.message = message;
+        this.errors = List.of(stackTrace);
     }
 }
