@@ -55,4 +55,12 @@ public class GeneralExceptionHandler {
         e.printStackTrace(pw);
         return sw.toString();
     }
+
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse conflictException(final ConflictException e) {
+        String reason = "For the requested operation the conditions are not met.";
+        log.error("{}. {}", reason, e.getMessage());
+        return new ErrorResponse(HttpStatus.CONFLICT, reason, e.getMessage(), getStackTrace(e));
+    }
 }

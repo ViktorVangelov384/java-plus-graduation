@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface UserMapper {
 
+    @Mapping(target = "id", ignore = true)
     User fromDto(UserRequestDto userDto);
 
     UserDto toDto(User user);

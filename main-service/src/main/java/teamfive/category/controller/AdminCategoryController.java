@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.*;
 import teamfive.category.dto.InputCategoryDto;
 import teamfive.category.dto.OutputCategoryDto;
@@ -13,7 +12,7 @@ import teamfive.category.dto.UpdateCategoryDto;
 import teamfive.category.service.CategoryService;
 
 @Slf4j
-@Service
+@RestController
 @RequiredArgsConstructor
 public class AdminCategoryController {
     private final CategoryService categoryService;
