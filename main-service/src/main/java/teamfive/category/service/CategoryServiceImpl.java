@@ -15,8 +15,10 @@ import teamfive.category.dto.UpdateCategoryDto;
 import teamfive.category.mapper.SimpleCategoryMapper;
 import teamfive.category.model.Category;
 import teamfive.category.storage.CategoryRepository;
+import teamfive.exception.ConflictException;
 import teamfive.exception.DuplicatedException;
 import teamfive.exception.NotFoundException;
+import teamfive.event.storage.EventRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,6 +31,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final SimpleCategoryMapper mapper;
     private final CategoryRepository repository;
+    private final EventRepository eventRepository;
 
     @Transactional
     @Override
@@ -47,14 +50,13 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     @Override
     public void delete(Long categoryId) {
-        if (!repository.existsById(categoryId)) {
-            throw new NotFoundException("Не найдена категория с  id = " + categoryId);
+        Category category = getCategoryById(categoryId);
+
+        if (eventRepository.existsByCategoryId(categoryId)) {
+            throw new ConflictException("Невозможно удалить категорию: существуют связанные события");
         }
 
-        /*ToDo: надо как-то обработать ошибку, что в категории есть события
-            но пока не могу, т.к. не реализованы события (делает Виктор)
-        */
-
+        log.info("Удаляю категорию: id = {}, name = {}", categoryId, category.getName());
         repository.deleteById(categoryId);
     }
 
@@ -78,6 +80,10 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public List<OutputCategoryDto> getAll(int from, int size) {
+
+        validatePaginationParams(from, size);
+        int page = calculatePageNumber(from, size);
+
         Pageable pageable = PageRequest.of(from / size, size, Sort.by("name").descending());
         Page<Category> categories = repository.findAll(pageable);
         return categories.getContent()
@@ -89,5 +95,19 @@ public class CategoryServiceImpl implements CategoryService {
     private Category getCategoryById(Long categoryId) {
         return repository.findById(categoryId).orElseThrow(() ->
                 new NotFoundException(String.format("Category with id=%d was not found", categoryId)));
+    }
+
+    private int calculatePageNumber(int from, int size) {
+        if (size == 0) throw new IllegalArgumentException("Size cannot be zero");
+        return from / size;
+    }
+
+    private void validatePaginationParams(int from, int size) {
+        if (size <= 0) {
+            throw new IllegalArgumentException("Size must be positive");
+        }
+        if (from < 0) {
+            throw new IllegalArgumentException("From must be non-negative");
+        }
     }
 }
