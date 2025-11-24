@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+@ToString
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,6 +28,6 @@ public class ParticipationRequest {
     private Long eventId;
 
     @Column(name = "requester_id", nullable = false)
-    private Long requester_id;
+    private Long requesterId;
 
 }
