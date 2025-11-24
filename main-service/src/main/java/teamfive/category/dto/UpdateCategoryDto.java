@@ -9,6 +9,6 @@ public class UpdateCategoryDto {
     private Long id;
 
     @NotBlank
-    @Size(min = 1, max = 150)
+    @Size(min = 1, max = 50)
     private String name;
 }

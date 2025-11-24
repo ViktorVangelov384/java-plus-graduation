@@ -14,6 +14,7 @@ import teamfive.category.service.CategoryService;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/admin")
 public class AdminCategoryController {
     private final CategoryService categoryService;
 
