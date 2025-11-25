@@ -32,5 +32,4 @@ public class MainApplication {
             throw new RuntimeException(e.getMessage());
         }
     }
-
 }
