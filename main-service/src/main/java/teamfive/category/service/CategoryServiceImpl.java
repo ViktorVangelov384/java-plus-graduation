@@ -66,7 +66,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category oldCategory = getCategoryById(updateCategoryDto.getId());
         Category newCategory = mapper.updateDtoToCategory(updateCategoryDto);
         try {
-            return mapper.categoryToOutDto(repository.save(newCategory));
+            return mapper.categoryToOutDto(repository.saveAndFlush(newCategory));
         } catch (DataIntegrityViolationException e) {
             throw new DuplicatedException(String.format("Category with name=%s already exists",
                     newCategory.getName()));
