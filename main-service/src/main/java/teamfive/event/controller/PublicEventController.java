@@ -28,7 +28,8 @@ public class PublicEventController {
             @RequestParam(defaultValue = "0") int from,
             @RequestParam(defaultValue = "10") int size) {
 
-        log.info("GET /events: text={}, categories={}, paid={}, sort={}", text, categories, paid, sort);
+        log.info("GET /events: text={}, categories={}, paid={}, sort={}, from={}, size={}",
+                text, categories, paid, sort, from, size);
         return eventService.getEventsByPublic(text, categories, paid, rangeStart,
                 rangeEnd, onlyAvailable, sort, from, size);
     }

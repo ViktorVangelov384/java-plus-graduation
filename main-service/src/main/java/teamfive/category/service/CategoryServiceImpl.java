@@ -36,6 +36,10 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     @Override
     public OutputCategoryDto createCategory(InputCategoryDto inputCategoryDto) {
+        if (inputCategoryDto.getName() == null || inputCategoryDto.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Category name cannot be blank");
+        }
+
         Category category = mapper.inputDtoToCategory(inputCategoryDto);
         log.info("Создаю category: name = {}", category.getName());
         try {
@@ -84,7 +88,7 @@ public class CategoryServiceImpl implements CategoryService {
         validatePaginationParams(from, size);
         int page = calculatePageNumber(from, size);
 
-        Pageable pageable = PageRequest.of(from / size, size, Sort.by("name").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
         Page<Category> categories = repository.findAll(pageable);
         return categories.getContent()
                 .stream()

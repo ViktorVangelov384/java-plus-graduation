@@ -7,6 +7,7 @@ import teamfive.event.dto.EventUpdateRequestDto;
 import java.util.List;
 
 public interface EventService {
+
     List<EventResponseDto> getEventsByAdmin(List<Long> users, List<String> states,
                                             List<Long> categories, String rangeStart,
                                             String rangeEnd, int from, int size);
@@ -19,4 +20,7 @@ public interface EventService {
                                           String sort, int from, int size);
 
     EventResponseDto getEventById(Long id);
+
+    EventResponseDto getEventByIdForInternalUse(Long id);
+
 }

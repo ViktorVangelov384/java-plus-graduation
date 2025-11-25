@@ -21,6 +21,9 @@ import teamfive.event.model.EventLocation;
 import teamfive.event.storage.EventRepository;
 import teamfive.exception.ConflictException;
 import teamfive.exception.NotFoundException;
+import teamfive.exception.ValidationException;
+import teamfive.request.model.ParticipationRequest;
+import teamfive.request.repository.RequestRepository;
 import teamfive.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
@@ -38,6 +41,7 @@ public class EventServiceImpl implements EventService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final EventMapper eventMapper;
+    private final RequestRepository requestRepository;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
@@ -46,7 +50,6 @@ public class EventServiceImpl implements EventService {
                                                    List<Long> categories, String rangeStart,
                                                    String rangeEnd, int from, int size) {
         log.info("Поиск событий администратором: users={}, states={}, categories={}", users, states, categories);
-        validatePaginationParams(from, size);
 
         validatePaginationParams(from, size);
         int page = calculatePageNumber(from, size);
@@ -95,6 +98,7 @@ public class EventServiceImpl implements EventService {
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
+
 
         if ("PUBLISH_EVENT".equals(updateRequest.getStateAction())) {
             if (event.getState() != EventState.PENDING) {
@@ -158,6 +162,7 @@ public class EventServiceImpl implements EventService {
                                                  String sort, int from, int size) {
         log.info("Поиск событий публичный: text={}, categories={}, paid={}", text, categories, paid);
 
+
         validatePaginationParams(from, size);
 
         Pageable pageable = createPageable(sort, from, size);
@@ -165,13 +170,18 @@ public class EventServiceImpl implements EventService {
         Specification<Event> spec = Specification.where((root, query, cb) ->
                 cb.equal(root.get("state"), EventState.PUBLISHED));
 
-        if (text != null && !text.isEmpty()) {
-            String searchText = "%" + text.toLowerCase() + "%";
-            spec = spec.and((root, query, cb) ->
-                    cb.or(
-                            cb.like(cb.lower(root.get("annotation")), searchText),
-                            cb.like(cb.lower(root.get("description")), searchText)
-                    ));
+
+        if (categories != null && !categories.isEmpty()) {
+            boolean anyCategoryExists = false;
+            for (Long categoryId : categories) {
+                if (categoryRepository.existsById(categoryId)) {
+                    anyCategoryExists = true;
+                    break;
+                }
+            }
+            if (!anyCategoryExists) {
+                throw new ValidationException("Указанные категории не существуют");
+            }
         }
 
         if (categories != null && !categories.isEmpty()) {
@@ -185,12 +195,12 @@ public class EventServiceImpl implements EventService {
         }
 
         LocalDateTime startDateTime = rangeStart != null ?
-                LocalDateTime.parse(rangeStart, FORMATTER) : LocalDateTime.now();
+                LocalDateTime.parse(rangeStart.replace(' ', 'T'), FORMATTER) : LocalDateTime.now();
         spec = spec.and((root, query, cb) ->
                 cb.greaterThan(root.get("eventDate"), startDateTime));
 
         if (rangeEnd != null) {
-            LocalDateTime endDateTime = LocalDateTime.parse(rangeEnd, FORMATTER);
+            LocalDateTime endDateTime = LocalDateTime.parse(rangeEnd.replace(' ', 'T'), FORMATTER);
             spec = spec.and((root, query, cb) ->
                     cb.lessThan(root.get("eventDate"), endDateTime));
         }
@@ -226,15 +236,48 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new NotFoundException("Событие с id=" + id + " не найдено"));
 
         if (event.getState() != EventState.PUBLISHED) {
-            throw new NotFoundException("Событие не опубликовано");
+            throw new NotFoundException("Событие с id=" + id + " не найдено");
         }
 
-        eventRepository.incrementViews(id);
+        event.setViews(event.getViews() + 1);
+        eventRepository.save(event);
 
-        Event updatedEvent = eventRepository.findById(id)
+        List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
+        int confirmedCount = 0;
+        for (ParticipationRequest request : requests) {
+            if ("CONFIRMED".equals(request.getStatus())) {
+                confirmedCount++;
+            }
+        }
+
+        EventResponseDto responseDto = eventMapper.toEventResponseDto(event);
+        responseDto.setConfirmedRequests(confirmedCount);
+
+        return responseDto;
+    }
+
+    @Override
+    public EventResponseDto getEventByIdForInternalUse(Long id) {
+        log.info("Получение события по id для внутреннего использования: {}", id);
+
+        Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Событие с id=" + id + " не найдено"));
 
-        return eventMapper.toEventResponseDto(updatedEvent);
+        eventRepository.incrementViews(id);
+        event.setViews(event.getViews() + 1);
+
+        List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
+        int confirmedCount = 0;
+        for (ParticipationRequest request : requests) {
+            if ("CONFIRMED".equals(request.getStatus())) {
+                confirmedCount++;
+            }
+        }
+
+        EventResponseDto responseDto = eventMapper.toEventResponseDto(event);
+        responseDto.setConfirmedRequests(confirmedCount);
+
+        return responseDto;
     }
 
     private Pageable createPageable(String sort, int from, int size) {

@@ -39,6 +39,10 @@ public class CompilationServiceImpl implements CompilationService {
     public CompilationResponseDto createCompilation(CompilationRequestDto request) {
         log.info("Создание подборки: title={}, events={}", request.getTitle(), request.getEvents());
 
+        if (request.getTitle() == null || request.getTitle().trim().isEmpty()) {
+            throw new IllegalArgumentException("Title cannot be null or empty");
+        }
+
         if (compilationRepository.existsByTitle(request.getTitle())) {
             throw new DuplicatedException("Подборка с названием '" + request.getTitle() + "' уже существует");
         }
@@ -48,6 +52,10 @@ public class CompilationServiceImpl implements CompilationService {
             events = new HashSet<>(eventRepository.findByIdIn(
                     request.getEvents().stream().collect(Collectors.toList())
             ));
+            if (events.size() != request.getEvents().size()) {
+                log.warn("Some events not found. Requested: {}, Found: {}",
+                        request.getEvents().size(), events.size());
+            }
         }
 
         Compilation compilation = Compilation.builder()

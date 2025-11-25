@@ -21,6 +21,8 @@ import teamfive.event.model.EventState;
 import teamfive.event.storage.EventRepository;
 import teamfive.exception.ConflictException;
 import teamfive.exception.NotFoundException;
+import teamfive.exception.ValidationException;
+import teamfive.exception.IllegalArgumentException;
 import teamfive.user.model.User;
 import teamfive.user.repository.UserRepository;
 
@@ -52,6 +54,10 @@ public class PrivateEventServiceImpl implements PrivateEventService {
 
         if (eventRequestDto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
             throw new ConflictException("Дата события должна быть не ранее чем через 2 часа от текущего момента");
+        }
+
+        if (eventRequestDto.getParticipantLimit() != null && eventRequestDto.getParticipantLimit() < 0) {
+            throw new teamfive.exception.IllegalArgumentException("Лимит участников не может быть отрицательным");
         }
 
         Event event = Event.builder()
@@ -127,6 +133,11 @@ public class PrivateEventServiceImpl implements PrivateEventService {
         if (updateRequest.getEventDate() != null &&
                 updateRequest.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
             throw new ConflictException("Дата события должна быть не ранее чем через 2 часа от текущего момента");
+        }
+
+        if (updateRequest.getParticipantLimit() != null && updateRequest.getParticipantLimit() < 0) {
+            throw new ValidationException("Число участников участников должно быть больше 0."
+                    + updateRequest.getParticipantLimit());
         }
 
         if (updateRequest.getAnnotation() != null) {
