@@ -10,6 +10,8 @@ import teamfive.event.service.EventService;
 import teamfive.request.dto.ParticipationRequestDto;
 import teamfive.request.service.RequestService;
 
+import java.util.List;
+
 @Slf4j
 @RestController
 @AllArgsConstructor
@@ -28,8 +30,18 @@ public class RequestController {
         return requestService.create(userId, eventId, eventService.getEventById(eventId));
     }
 
+    @GetMapping
+    public List<ParticipationRequestDto> getRequests(@PathVariable @Positive Long userId) {
+        log.info("GET: Получение информации о заявках текущего userId={} на участие в чужих событиях", userId);
+        List<ParticipationRequestDto> requests = requestService.getRequests(userId);
+        log.info("Метод getRequests вернул {} запросов для пользователя с id={}", requests.size(), userId);
+        return requests;
+    }
 
-
-
-
+    @PatchMapping("/{requestId}/cancel")
+    public ParticipationRequestDto cancelRequest(@PathVariable @Positive Long userId,
+                                                 @PathVariable @Positive Long requestId) {
+        log.info("PATCH: Отмена участия userId={}, в requestId={}", userId, requestId);
+        return requestService.cancelRequest(userId, requestId);
+    }
 }

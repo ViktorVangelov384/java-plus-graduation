@@ -8,6 +8,7 @@ import teamfive.event.dto.EventResponseDto;
 import teamfive.event.model.EventState;
 import teamfive.exception.ConflictException;
 import teamfive.exception.DuplicatedException;
+import teamfive.exception.NotFoundException;
 import teamfive.request.dto.ParticipationRequestDto;
 import teamfive.request.enums.RequestStatus;
 import teamfive.request.mapper.RequestMapper;
@@ -17,6 +18,8 @@ import teamfive.user.dto.UserDto;
 import teamfive.user.service.UserService;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,9 +44,7 @@ public class RequestServiceImpl implements RequestService {
         if (event.getParticipantLimit() != 0 && !event.getState().equals(EventState.PUBLISHED.toString()))
             throw new ConflictException("Нельзя участвовать в неопубликованном событии");
 
-        int confirmedRequestsCount = repository.findAllByEventIdAndStatus(
-                eventId,
-                RequestStatus.CONFIRMED.toString()).size();
+        int confirmedRequestsCount = repository.findAllByEventIdAndStatus(eventId, RequestStatus.CONFIRMED.toString()).size();
 
         if (event.getParticipantLimit() > 0 && confirmedRequestsCount >= event.getParticipantLimit())
             throw new ConflictException("Достигнут лимит запросов на участие");
@@ -54,12 +55,7 @@ public class RequestServiceImpl implements RequestService {
             status = RequestStatus.CONFIRMED;
         }
 
-        ParticipationRequest request = ParticipationRequest.builder()
-                .requesterId(user.getId())
-                .eventId(event.getId())
-                .status(status.toString())
-                .created(LocalDateTime.now())
-                .build();
+        ParticipationRequest request = ParticipationRequest.builder().requesterId(user.getId()).eventId(event.getId()).status(status.toString()).created(LocalDateTime.now()).build();
 
         ParticipationRequest participationRequest = repository.save(request);
         repository.flush();
@@ -67,7 +63,30 @@ public class RequestServiceImpl implements RequestService {
         return mapper.toDto(participationRequest);
     }
 
+    @Override
+    public List<ParticipationRequestDto> getRequests(Long userId) {
+        UserDto user = userService.get(userId);
+        return repository.findAllByRequesterId(user.getId()).stream().map(mapper::toDto).collect(Collectors.toList());
+    }
 
+    @Override
+    @Transactional
+    public ParticipationRequestDto cancelRequest(Long userId, Long requestId) {
+        ParticipationRequest request = repository.findById(requestId).orElseThrow(() -> new NotFoundException("Заявка не найдена"));
 
+        UserDto user = userService.get(request.getRequesterId());
+        if (!user.getId().equals(userId)) {
+            log.error("Попытка отменить чужую заявку: userId={}, заявка принадлежит userId={}", userId, user.getId());
+            throw new ConflictException("Пользователь, который не является автором заявки, не может её отменить.");
+        }
 
+        request.setStatus(RequestStatus.CANCELED.toString());
+        log.info("Статус заявки с id={} изменен на CANCELED", requestId);
+
+        ParticipationRequestDto requestDto = mapper.toDto(repository.save(request));
+        repository.flush();
+        log.info("Участие в событии для пользователя с id={} отменено", userId);
+
+        return requestDto;
+    }
 }
