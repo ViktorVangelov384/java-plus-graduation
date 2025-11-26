@@ -1,5 +1,6 @@
 package teamfive.event.service;
 
+import dto.StatDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import teamfive.category.model.Category;
 import teamfive.category.storage.CategoryRepository;
+import teamfive.client.StatClient;
 import teamfive.event.dto.EventResponseDto;
 import teamfive.event.dto.EventShortDto;
 import teamfive.event.dto.EventUpdateRequestDto;
@@ -28,7 +30,7 @@ import teamfive.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,9 +41,11 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final CategoryRepository categoryRepository;
+    // наверное надо убрать !
     private final UserRepository userRepository;
     private final EventMapper eventMapper;
     private final RequestRepository requestRepository;
+    private final StatClient client;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
@@ -238,9 +242,19 @@ public class EventServiceImpl implements EventService {
         if (event.getState() != EventState.PUBLISHED) {
             throw new NotFoundException("Событие с id=" + id + " не найдено");
         }
-
-        event.setViews(event.getViews() + 1);
         eventRepository.save(event);
+
+        // Тоже костыль)))))
+        List<Event> list = new ArrayList<>();
+        list.add(event);
+        LocalDateTime now = LocalDateTime.now();
+        log.info("LocalDateTime now = {} ", now);
+
+        LocalDateTime inTwoHours = now.plusHours(2);
+        log.info("LocalDateTime inTwoHours = {} ", inTwoHours);
+        event.setViews(getViewsClient(list, now, inTwoHours));
+        log.info("Проверка получения просмотров VIEWS= {} ", getViewsClient(list, now, inTwoHours));
+
 
         List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
         int confirmedCount = 0;
@@ -255,6 +269,53 @@ public class EventServiceImpl implements EventService {
 
         return responseDto;
     }
+
+    private Long getViewsClient(List<Event> events, LocalDateTime start, LocalDateTime end) {
+        Map<Long, String> eventIds = events
+                .stream()
+                .collect(Collectors.toMap(
+                        Event::getId,
+                        event -> "/events/" + event.getId()
+                ));
+
+        // ЖЖЖЖЕСТКИЙ костыльль. Пардонте делал наскоряк. Это потому что в клиенте стринги почему то!!!
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        String startForClient = formatter.format(start);
+        String endForClient = formatter.format(end);
+
+
+        Optional<Collection<StatDto>> statDtos = Optional.ofNullable(client.getStats(
+                startForClient,
+                endForClient,
+                eventIds.values().stream().toList(),
+                true
+        ));
+
+        if (statDtos.isPresent() && !statDtos.get().isEmpty()) {
+            Map<String, Long> hitsStats = statDtos.get()
+                    .stream()
+                    .collect(Collectors.toMap(StatDto::getUri, StatDto::getHits));
+
+            long totalViews = statDtos.get()
+                    .stream()
+                    .mapToLong(StatDto::getHits)
+                    .sum();
+
+            events.forEach(event -> {
+                Long hit = hitsStats.get(eventIds.get(event.getId()));
+                event.setViews(Objects.isNull(hit) ? 0L : hit);
+            });
+
+            return totalViews;
+        } else {
+            events.forEach(event -> event.setViews(0L));
+            return 0L;
+        }
+    }
+
+
+
+
 
     @Override
     public EventResponseDto getEventByIdForInternalUse(Long id) {
