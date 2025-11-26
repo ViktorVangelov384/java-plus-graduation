@@ -63,6 +63,6 @@ public class Event {
 
     @Column(nullable = false, length = 120)
     private String title;
-
+    // Это расчетное поле его надо получать
     private Long views;
 }

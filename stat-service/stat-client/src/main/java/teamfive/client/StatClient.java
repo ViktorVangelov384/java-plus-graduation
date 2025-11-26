@@ -44,6 +44,7 @@ public class StatClient {
             hitDto.setUri(request.getRequestURI());
             hitDto.setIp(getClientIpAddress(request));
             hitDto.setTimestamp(LocalDateTime.now());
+            log.warn("StatClient - CTAT");
 
             restClient.post().uri(serverUrl + "/hit")
                     .contentType(MediaType.APPLICATION_JSON)

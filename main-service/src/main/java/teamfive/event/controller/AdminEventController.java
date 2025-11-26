@@ -1,10 +1,12 @@
 package teamfive.event.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import teamfive.client.StatClient;
 import teamfive.event.dto.EventResponseDto;
 import teamfive.event.dto.EventUpdateRequestDto;
 import teamfive.event.service.EventService;
@@ -19,6 +21,7 @@ import java.util.List;
 @RequestMapping("/admin/events")
 public class AdminEventController {
     private final EventService eventService;
+    private final StatClient client;
 
     @GetMapping
     public List<EventResponseDto> getEvents(
@@ -28,13 +31,16 @@ public class AdminEventController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime rangeStart,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime rangeEnd,
             @RequestParam(defaultValue = "0") int from,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size, HttpServletRequest request) {
 
         log.info("GET /admin/events: users={}, states={}, categories={}, rangeStart={}, rangeEnd={}",
                 users, states, categories, rangeStart, rangeEnd);
 
         String rangeStartStr = rangeStart != null ? rangeStart.format(DateTimeFormatter.ISO_DATE_TIME) : null;
         String rangeEndStr = rangeEnd != null ? rangeEnd.format(DateTimeFormatter.ISO_DATE_TIME) : null;
+
+        client.hit(request);
+        log.warn("HIT АДМИН КОНТРОЛЛЕРА РАБОТАЕТ");
 
         return eventService.getEventsByAdmin(users, states, categories, rangeStartStr, rangeEndStr, from, size);
     }
