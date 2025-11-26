@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Develope" type="Application" factoryName="Application">
+  <configuration default="false" name="Develope-MAIN" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="teamfive.MainApplication" />
     <module name="main-service" />
     <option name="VM_PARAMETERS" value="-Dspring.profiles.active=developer" />
