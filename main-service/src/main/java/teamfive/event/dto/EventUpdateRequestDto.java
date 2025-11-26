@@ -1,9 +1,12 @@
 package teamfive.event.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import teamfive.configuration.CustomLocalDateTimeDeserializer;
+
 import java.time.LocalDateTime;
 
 @Data
@@ -17,6 +20,7 @@ public class EventUpdateRequestDto {
     private String description;
 
     @Future
+    @JsonDeserialize(using = CustomLocalDateTimeDeserializer.class)
     private LocalDateTime eventDate;
 
     private EventLocationDto location;

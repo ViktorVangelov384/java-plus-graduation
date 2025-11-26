@@ -13,7 +13,6 @@ public interface SimpleCategoryMapper {
     @Mapping(target = "id", ignore = true)
     Category inputDtoToCategory(InputCategoryDto inputCategoryDto);
 
-    //@Mapping(target = "id", ignore = true)
     Category updateDtoToCategory(UpdateCategoryDto updateCategoryDto);
 
     OutputCategoryDto categoryToOutDto(Category category);
