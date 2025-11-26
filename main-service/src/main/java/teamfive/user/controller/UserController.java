@@ -55,7 +55,7 @@ public class UserController {
 
         UserDto createdUser = userService.create(user);
 
-        log.info("Пользователь успешно создан");
+        log.debug("Пользователь успешно создан");
 
         return createdUser;
     }
