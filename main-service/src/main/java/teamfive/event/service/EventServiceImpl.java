@@ -28,6 +28,8 @@ import teamfive.request.model.ParticipationRequest;
 import teamfive.request.repository.RequestRepository;
 import teamfive.user.repository.UserRepository;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -279,14 +281,19 @@ public class EventServiceImpl implements EventService {
                 ));
 
         // ЖЖЖЖЕСТКИЙ костыльль. Пардонте делал наскоряк. Это потому что в клиенте стринги почему то!!!
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
         String startForClient = formatter.format(start);
         String endForClient = formatter.format(end);
 
+// Кодирование параметров
+        String encodedStart = URLEncoder.encode(startForClient, StandardCharsets.UTF_8);
+        String encodedEnd = URLEncoder.encode(endForClient, StandardCharsets.UTF_8);
+
 
         Optional<Collection<StatDto>> statDtos = Optional.ofNullable(client.getStats(
-                startForClient,
-                endForClient,
+                encodedStart,
+                encodedEnd,
                 eventIds.values().stream().toList(),
                 true
         ));
@@ -312,9 +319,6 @@ public class EventServiceImpl implements EventService {
             return 0L;
         }
     }
-
-
-
 
 
     @Override
