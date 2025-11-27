@@ -61,6 +61,10 @@ public class StatClient {
                                   List<String> uris,
                                   Boolean unique) {
 
+        log.info("Полученные параметры           \nstart=   {}        \nend= {}        \nuris= {}        \nunique = {}", start,
+                 end, uris, unique );
+
+
         if (start == null || end == null) {
             log.warn("Параметры start и end не могут быть null");
             return List.of();

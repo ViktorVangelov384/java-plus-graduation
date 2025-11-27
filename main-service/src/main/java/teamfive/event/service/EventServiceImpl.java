@@ -249,12 +249,15 @@ public class EventServiceImpl implements EventService {
         // Тоже костыль)))))
         List<Event> list = new ArrayList<>();
         list.add(event);
-        LocalDateTime now = LocalDateTime.now();
-        log.info("LocalDateTime now = {} ", now);
 
+        LocalDateTime now = LocalDateTime.now();
         LocalDateTime inTwoHours = now.plusHours(2);
-        log.info("LocalDateTime inTwoHours = {} ", inTwoHours);
+
+        log.info("LocalDateTime                        now = {} ", now);
+        log.info("LocalDateTime                      inTwoHours = {} ", inTwoHours);
+
         event.setViews(getViewsClient(list, now, inTwoHours));
+
         log.info("Проверка получения просмотров VIEWS= {} ", getViewsClient(list, now, inTwoHours));
 
 
@@ -282,18 +285,20 @@ public class EventServiceImpl implements EventService {
 
         // ЖЖЖЖЕСТКИЙ костыльль. Пардонте делал наскоряк. Это потому что в клиенте стринги почему то!!!
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         String startForClient = formatter.format(start);
         String endForClient = formatter.format(end);
 
 // Кодирование параметров
-        String encodedStart = URLEncoder.encode(startForClient, StandardCharsets.UTF_8);
-        String encodedEnd = URLEncoder.encode(endForClient, StandardCharsets.UTF_8);
+        /*String encodedStart = URLEncoder.encode(startForClient, StandardCharsets.UTF_8);
+        String encodedEnd = URLEncoder.encode(endForClient, StandardCharsets.UTF_8);*/
 
+        log.info("                startForClient = {} ", startForClient);
+        log.info("                 endForClient = {} ", endForClient);
 
         Optional<Collection<StatDto>> statDtos = Optional.ofNullable(client.getStats(
-                encodedStart,
-                encodedEnd,
+                startForClient,
+                endForClient,
                 eventIds.values().stream().toList(),
                 true
         ));
