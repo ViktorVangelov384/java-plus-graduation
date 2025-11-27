@@ -71,4 +71,13 @@ public class GeneralExceptionHandler {
         log.error("{}. {}", reason, e.getMessage());
         return new ErrorResponse(HttpStatus.CONFLICT, reason, e.getMessage(), getStackTrace(e));
     }
+
+    @ExceptionHandler(RuntimeException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleRuntimeException(RuntimeException e) {
+        String reason = "Internal Server Error";
+        log.error("{}. {}", reason, e.getMessage(), e);
+        return new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, reason,
+                "Внутренняя ошибка сервера", getStackTrace(e));
+    }
 }

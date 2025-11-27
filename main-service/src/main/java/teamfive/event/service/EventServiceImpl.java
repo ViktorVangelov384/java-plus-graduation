@@ -239,6 +239,11 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Событие с id=" + id + " не найдено");
         }
 
+        if (event.getPublishedOn() == null) {
+            log.warn("Событие {} опубликовано, но publishedOn is null", id);
+            event.setPublishedOn(LocalDateTime.now().minusDays(1));
+        }
+
         Long viewsFromStats = getViewsClient(event);
         log.info("Просмотры из статистики: {}", viewsFromStats);
 
