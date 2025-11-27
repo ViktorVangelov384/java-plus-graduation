@@ -1,5 +1,6 @@
 package teamfive.event.service;
 
+import dto.StatDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,7 +27,6 @@ import teamfive.exception.NotFoundException;
 import teamfive.exception.ValidationException;
 import teamfive.request.model.ParticipationRequest;
 import teamfive.request.repository.RequestRepository;
-import teamfive.user.repository.UserRepository;
 
 
 import java.time.LocalDateTime;
@@ -42,8 +42,6 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final CategoryRepository categoryRepository;
-    // наверное надо убрать !
-    private final UserRepository userRepository;
     private final EventMapper eventMapper;
     private final RequestRepository requestRepository;
     private final StatClient client;
@@ -221,15 +219,12 @@ public class EventServiceImpl implements EventService {
 
         Page<Event> events = eventRepository.findAll(spec, pageable);
 
-        List<Long> eventIds = events.getContent().stream()
-                .map(Event::getId)
-                .collect(Collectors.toList());
-        eventRepository.incrementViewsBatch(eventIds);
-
-        List<Event> updatedEvents = eventRepository.findByIdIn(eventIds);
-
-        return updatedEvents.stream()
-                .map(eventMapper::toEventShortDto)
+        return events.getContent().stream()
+                .map(event -> {
+                    Long views = getViewsClientForList(event);
+                    event.setViews(views);
+                    return eventMapper.toEventShortDto(event);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -243,21 +238,16 @@ public class EventServiceImpl implements EventService {
         if (event.getState() != EventState.PUBLISHED) {
             throw new NotFoundException("Событие с id=" + id + " не найдено");
         }
-        eventRepository.save(event);
 
-        log.warn("ВЫЗОВ СЧЕТЧИКА");
+        Long viewsFromStats = getViewsClient(event);
+        log.info("Просмотры из статистики: {}", viewsFromStats);
 
-        event.setViews(getViewsClient(event));
-        log.warn("Получение ПРОСМОТРОВ: {}", getViewsClient(event));
-
+        event.setViews(viewsFromStats);
 
         List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
-        int confirmedCount = 0;
-        for (ParticipationRequest request : requests) {
-            if ("CONFIRMED".equals(request.getStatus())) {
-                confirmedCount++;
-            }
-        }
+        int confirmedCount = (int) requests.stream()
+                .filter(request -> "CONFIRMED".equals(request.getStatus()))
+                .count();
 
         EventResponseDto responseDto = eventMapper.toEventResponseDto(event);
         responseDto.setConfirmedRequests(confirmedCount);
@@ -266,31 +256,35 @@ public class EventServiceImpl implements EventService {
     }
 
     private Long getViewsClient(Event event) {
-        String uri = ("/events/" + event.getId());
-        LocalDateTime publishDate = LocalDateTime.now().minusHours(1);
-        if (event.getPublishedOn() != null) {
-            publishDate = event.getPublishedOn();
+        try {
+            String uri = "/events/" + event.getId();
+            LocalDateTime publishDate = event.getPublishedOn() != null ?
+                    event.getPublishedOn() : LocalDateTime.now().minusYears(1);
+
+            log.info("URI для статистики: {}, publishDate: {}", uri, publishDate);
+
+            ParamRequest paramRequest = new ParamRequest(
+                    publishDate,
+                    LocalDateTime.now(),
+                    Collections.singletonList(uri),
+                    true);
+
+            List<StatDto> stats = client.getStats(paramRequest);
+
+            log.info("Получено {} записей статистики", stats.size());
+
+            Long totalViews = stats.stream()
+                    .mapToLong(StatDto::getHits)
+                    .sum();
+
+            log.info("Общее количество просмотров из статистики: {}", totalViews);
+            return totalViews;
+
+        } catch (Exception e) {
+            log.error("Ошибка при получении статистики: {}", e.getMessage());
+            return 1L;
         }
-
-        // Добавляем логи в формате log.info для отслеживания значений переменных
-        log.info("URI: " + uri);
-        log.info("Publish Date: " + publishDate);
-
-        ParamRequest paramRequest = new ParamRequest(
-                publishDate, LocalDateTime.now(), Collections.singletonList(uri), true);
-
-        // Логирование запроса перед вызовом метода getStats
-        log.info("ParamRequest: " + paramRequest);
-
-        Long views = (long) client.getStats(paramRequest).size();
-
-        // Лог результата
-        log.info("Views: " + views);
-
-        return views;
     }
-
-
 
     @Override
     public EventResponseDto getEventByIdForInternalUse(Long id) {
@@ -298,9 +292,6 @@ public class EventServiceImpl implements EventService {
 
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Событие с id=" + id + " не найдено"));
-
-        eventRepository.incrementViews(id);
-        event.setViews(event.getViews() + 1);
 
         List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
         int confirmedCount = 0;
@@ -342,5 +333,32 @@ public class EventServiceImpl implements EventService {
 
     private int calculatePageNumber(int from, int size) {
         return from / size;
+    }
+
+    private Long getViewsClientForList(Event event) {
+        try {
+            String uri = "/events/" + event.getId();
+            LocalDateTime publishDate = event.getPublishedOn() != null ?
+                    event.getPublishedOn() : LocalDateTime.now().minusYears(1);
+
+            ParamRequest paramRequest = new ParamRequest(
+                    publishDate,
+                    LocalDateTime.now(),
+                    Collections.singletonList(uri),
+                    false);
+
+            List<StatDto> stats = client.getStats(paramRequest);
+
+            Long totalViews = stats.stream()
+                    .mapToLong(StatDto::getHits)
+                    .sum();
+
+            log.info("Просмотры для списка событий {}: {}", event.getId(), totalViews);
+            return totalViews;
+
+        } catch (Exception e) {
+            log.error("Ошибка при получении статистики для списка: {}", e.getMessage());
+            return event.getViews() != null ? event.getViews() : 0L;
+        }
     }
 }

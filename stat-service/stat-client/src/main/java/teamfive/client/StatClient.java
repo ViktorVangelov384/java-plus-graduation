@@ -11,9 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.rmi.RemoteException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -60,33 +58,47 @@ public class StatClient {
     }
 
     public List<StatDto> getStats(ParamRequest paramRequest) {
-        log.warn("ТЫ В ТАНЦАХ????????");
 
-        // Добавим логи для отслеживания параметров запроса
-        log.info("Start: " + paramRequest.getStart());
-        log.info("End: " + paramRequest.getEnd());
-        log.info("URIs: " + paramRequest.getUris());
-        log.info("Unique: " + paramRequest.getUnique());
+        try {
+            log.info("Получение статистики с параметрами: start={}, end={}, uris={}, unique={}",
+                    paramRequest.getStart(), paramRequest.getEnd(), paramRequest.getUris(), paramRequest.getUnique());
 
-        return restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path(serverUrl + "/stats")
-                        .queryParam("start", paramRequest.getStart().toString())
-                        .queryParam("end", paramRequest.getEnd().toString())
-                        .queryParam("uris", paramRequest.getUris())
-                        .queryParam("unique", paramRequest.getUnique())
-                        .build())
-                .retrieve()
-                .onStatus(status -> status != HttpStatus.OK, (request, response) -> {
-                    log.error("Ошибка при запросе к серверу: " + response.getStatusCode().value() + ": " + response.getBody());
-                    throw new RuntimeException(response.getStatusCode().value() + ": " + response.getBody());
-                })
-                .body(ParameterizedTypeReference.forType(List.class));
-    }
+            String baseUrl = serverUrl;
 
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            String startFormatted = paramRequest.getStart().format(formatter);
+            String endFormatted = paramRequest.getEnd().format(formatter);
 
-    private String encodeValue(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+            String finalUrl = String.format("%s/stats?start=%s&end=%s&unique=%s",
+                    baseUrl, startFormatted, endFormatted, paramRequest.getUnique());
+
+            if (paramRequest.getUris() != null && !paramRequest.getUris().isEmpty()) {
+                for (String uri : paramRequest.getUris()) {
+                    finalUrl += "&uris=" + uri;
+                }
+            }
+
+            log.info("Final URL: {}", finalUrl);
+
+            return restClient.get()
+                    .uri(finalUrl)
+                    .retrieve()
+                    .onStatus(status -> status != HttpStatus.OK, (request, response) -> {
+                        String errorBody = "Не удалось прочитать тело ошибки";
+                        try {
+                            errorBody = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                        } catch (Exception e) {
+                            log.error("Ошибка при чтении тела ответа: {}", e.getMessage());
+                        }
+                        log.error("Ошибка при запросе к серверу: {}: {}", response.getStatusCode().value(), errorBody);
+                        throw new RuntimeException("Ошибка статистики: " + response.getStatusCode().value() + ": " + errorBody);
+                    })
+                    .body(new ParameterizedTypeReference<List<StatDto>>() {
+                    });
+        } catch (Exception e) {
+            log.error("Исключение при запросе статистики: {}", e.getMessage(), e);
+            throw new RuntimeException("Ошибка при запросе статистики: " + e.getMessage(), e);
+        }
     }
 
     private String getClientIpAddress(HttpServletRequest request) {
