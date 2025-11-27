@@ -44,7 +44,7 @@ public class RequestServiceImpl implements RequestService {
         log.info("Создание запроса: userId={}, eventId={}, eventState={}, participantLimit={}",
                 userId, eventId, event.getState(), event.getParticipantLimit());
 
-        if (repository.findByEventIdAndRequesterId(eventId, userId).isPresent())
+        /*if (repository.findByEventIdAndRequesterId(eventId, userId).isPresent())
             throw new DuplicatedException("Такая заявка уже создана");
 
         if (event.getInitiator().getId().equals(userId))
@@ -61,24 +61,6 @@ public class RequestServiceImpl implements RequestService {
             throw new ConflictException("Достигнут лимит участников");
         }
         RequestStatus status = RequestStatus.PENDING;
-
-        /*boolean isUnlimitedEvent = event.getParticipantLimit() == 0;
-        boolean isModerationDisabled = event.getRequestModeration() == null || !event.getRequestModeration();
-        boolean hasAvailableSlots = confirmedCount < event.getParticipantLimit();
-
-        log.info("Условия: isUnlimitedEvent={}, isModerationDisabled={}, hasAvailableSlots={}",
-                isUnlimitedEvent, isModerationDisabled, hasAvailableSlots);
-
-        if (isUnlimitedEvent) {
-            status = RequestStatus.CONFIRMED;
-            log.info("Событие БЕЗ лимита участников - статус CONFIRMED");
-        } else if (isModerationDisabled && hasAvailableSlots) {
-            status = RequestStatus.CONFIRMED;
-            log.info("Модерация ОТКЛЮЧЕНА и есть места - статус CONFIRMED");
-        } else {
-            status = RequestStatus.PENDING;
-            log.info("Требуется модерация или нет мест - статус PENDING");
-        }*/
 
         if (event.getParticipantLimit() == 0) {
             status = RequestStatus.CONFIRMED;
@@ -111,18 +93,97 @@ public class RequestServiceImpl implements RequestService {
         repository.flush();
         log.info("Запрос успешно создан. Параметры: {}", participationRequest);
         return mapper.toDto(participationRequest);
+    }*/
+        try {
+            UserDto user = userService.get(userId);
+            if (user == null) {
+                throw new NotFoundException("Пользователь с id=" + userId + " не найден");
+            }
+
+            if (repository.findByEventIdAndRequesterId(eventId, userId).isPresent()) {
+                throw new DuplicatedException("Такая заявка уже создана");
+            }
+
+            if (event.getInitiator().getId().equals(userId)) {
+                throw new ConflictException("Инициатор события не может добавить запрос на участие в своём событии");
+            }
+
+            if (!EventState.PUBLISHED.toString().equals(event.getState())) {
+                throw new ConflictException("Нельзя участвовать в неопубликованном событии");
+            }
+
+            int confirmedCount = repository.findAllByEventIdAndStatus(eventId, RequestStatus.CONFIRMED.toString()).size();
+
+            RequestStatus status;
+
+            if (event.getParticipantLimit() == 0) {
+                status = RequestStatus.CONFIRMED;
+            } else if (event.getRequestModeration() == null || !event.getRequestModeration()) {
+                if (confirmedCount < event.getParticipantLimit()) {
+                    status = RequestStatus.CONFIRMED;
+                } else {
+                    throw new ConflictException("Достигнут лимит участников");
+                }
+            } else {
+                if (confirmedCount < event.getParticipantLimit()) {
+                    status = RequestStatus.PENDING;
+                } else {
+                    throw new ConflictException("Достигнут лимит участников");
+                }
+            }
+
+            ParticipationRequest request = ParticipationRequest.builder()
+                    .requesterId(user.getId())
+                    .eventId(event.getId())
+                    .status(status.toString())
+                    .created(LocalDateTime.now())
+                    .build();
+
+            ParticipationRequest savedRequest = repository.save(request);
+            log.info("Запрос создан: id={}, status={}", savedRequest.getId(), status);
+
+            return mapper.toDto(savedRequest);
+
+        } catch (NotFoundException | ConflictException | DuplicatedException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Неожиданная ошибка при создании заявки: {}", e.getMessage(), e);
+            throw new RuntimeException("Внутренняя ошибка сервера при создании заявки");
+        }
     }
 
     @Override
     public List<ParticipationRequestDto> getRequests(Long userId) {
-        UserDto user = userService.get(userId);
-        return repository.findAllByRequesterId(user.getId()).stream().map(mapper::toDto).collect(Collectors.toList());
+        //UserDto user = userService.get(userId);
+        //return repository.findAllByRequesterId(user.getId()).stream().map(mapper::toDto).collect(Collectors.toList());
+        try {
+            log.info("Получение заявок пользователя: userId={}", userId);
+
+            // Проверяем существование пользователя
+            UserDto user = userService.get(userId);
+            if (user == null) {
+                throw new NotFoundException("Пользователь с id=" + userId + " не найден");
+            }
+
+            List<ParticipationRequest> requests = repository.findAllByRequesterId(userId);
+            log.info("Найдено {} заявок для пользователя {}", requests.size(), userId);
+
+            return requests.stream()
+                    .map(mapper::toDto)
+                    .collect(Collectors.toList());
+
+        } catch (NotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Неожиданная ошибка при получении заявок пользователя {}: {}", userId, e.getMessage(), e);
+            throw new RuntimeException("Внутренняя ошибка сервера при получении заявок");
+        }
     }
 
     @Override
     @Transactional
     public ParticipationRequestDto cancelRequest(Long userId, Long requestId) {
-        ParticipationRequest request = repository.findById(requestId).orElseThrow(() -> new NotFoundException("Заявка не найдена"));
+        /*ParticipationRequest request = repository.findById(requestId).orElseThrow(() -> new NotFoundException("Заявка не найдена"));
 
         UserDto user = userService.get(request.getRequesterId());
         if (!user.getId().equals(userId)) {
@@ -138,6 +199,40 @@ public class RequestServiceImpl implements RequestService {
         log.info("Участие в событии для пользователя с id={} отменено", userId);
 
         return requestDto;
+    }*/
+        try {
+            ParticipationRequest request = repository.findById(requestId)
+                    .orElseThrow(() -> new NotFoundException("Заявка не найдена"));
+
+            log.info("Найдена заявка: requesterId={}, status={}", request.getRequesterId(), request.getStatus());
+
+            if (!request.getRequesterId().equals(userId)) {
+                log.error("Попытка отменить чужую заявку: userId={}, заявка принадлежит userId={}",
+                        userId, request.getRequesterId());
+                throw new ConflictException("Пользователь, который не является автором заявки, не может её отменить.");
+            }
+
+            if (RequestStatus.CANCELED.toString().equals(request.getStatus())) {
+                log.warn("Заявка {} уже отменена", requestId);
+                return mapper.toDto(request);
+            }
+
+            request.setStatus(RequestStatus.CANCELED.toString());
+
+            ParticipationRequest updatedRequest = repository.save(request);
+            log.info("Статус заявки с id={} изменен на CANCELED", requestId);
+
+            ParticipationRequestDto requestDto = mapper.toDto(updatedRequest);
+            log.info("Участие в событии для пользователя с id={} отменено", userId);
+
+            return requestDto;
+
+        } catch (NotFoundException | ConflictException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Неожиданная ошибка при отмене заявки {}: {}", requestId, e.getMessage(), e);
+            throw new RuntimeException("Внутренняя ошибка сервера при отмене заявки");
+        }
     }
 
     @Override
