@@ -1,8 +1,10 @@
 package teamfive.event.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import teamfive.client.StatClient;
 import teamfive.event.dto.EventResponseDto;
 import teamfive.event.dto.EventShortDto;
 import teamfive.event.service.EventService;
@@ -15,6 +17,7 @@ import java.util.List;
 @RequestMapping("/events")
 public class PublicEventController {
     private final EventService eventService;
+    private final StatClient client;
 
     @GetMapping
     public List<EventShortDto> getEvents(
@@ -26,17 +29,22 @@ public class PublicEventController {
             @RequestParam(defaultValue = "false") Boolean onlyAvailable,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int from,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size, HttpServletRequest request) {
 
         log.info("GET /events: text={}, categories={}, paid={}, sort={}, from={}, size={}",
                 text, categories, paid, sort, from, size);
+        client.hit(request);
+        log.warn("HIT Public  КОНТРОЛЛЕРА РАБОТАЕТ");
+
         return eventService.getEventsByPublic(text, categories, paid, rangeStart,
                 rangeEnd, onlyAvailable, sort, from, size);
     }
 
     @GetMapping("/{id}")
-    public EventResponseDto getEvent(@PathVariable Long id) {
+    public EventResponseDto getEvent(@PathVariable Long id, HttpServletRequest request) {
         log.info("GET /events/{}", id);
+        client.hit(request);
+        log.warn("HIT Public одного события  КОНТРОЛЛЕРА РАБОТАЕТ");
         return eventService.getEventById(id);
     }
 }

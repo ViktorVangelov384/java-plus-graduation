@@ -83,14 +83,14 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDto create(UserRequestDto requestDto) {
-        log.info("Добавление пользователя с данными: {}", requestDto);
+        log.debug("Добавление пользователя с данными: {}", requestDto);
 
         User user = userMapper.fromDto(requestDto);
         if (checkEmailExist(user.getEmail())) {
             throw new DuplicatedException("Пользователь с таким email уже существует");
         }
 
-        log.info("Сохранение пользователя в базу данных");
+        log.debug("Сохранение пользователя в базу данных");
         User userSaved = userRepository.save(user);
         userRepository.flush();
         log.info("Пользователь успешно сохранён с ID: {}", userSaved.getId());
@@ -112,18 +112,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public boolean existsById(Long id) {
-        log.info("Проверка существования пользователя с ID: {}", id);
+        log.debug("Проверка существования пользователя с ID: {}", id);
         boolean exists = userRepository.existsById(id);
-        log.info("Пользователь с ID {} существует: {}", id, exists);
+        log.debug("Пользователь с ID {} существует: {}", id, exists);
         return exists;
     }
 
 
     @Override
     public boolean checkEmailExist(String email) {
-        log.info("Проверка существования пользователя по email: {}", email);
+        log.debug("Проверка существования пользователя по email: {}", email);
         boolean exists = userRepository.existsByEmail(email);
-        log.info("Пользователь с email {} существует: {}", email, exists);
+        log.debug("Пользователь с email {} существует: {}", email, exists);
         return exists;
     }
 

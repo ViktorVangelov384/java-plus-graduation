@@ -1,5 +1,6 @@
 package teamfive.event.service;
 
+import dto.StatDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import teamfive.category.model.Category;
 import teamfive.category.storage.CategoryRepository;
+import teamfive.client.ParamRequest;
+import teamfive.client.StatClient;
 import teamfive.event.dto.EventResponseDto;
 import teamfive.event.dto.EventShortDto;
 import teamfive.event.dto.EventUpdateRequestDto;
@@ -24,11 +27,11 @@ import teamfive.exception.NotFoundException;
 import teamfive.exception.ValidationException;
 import teamfive.request.model.ParticipationRequest;
 import teamfive.request.repository.RequestRepository;
-import teamfive.user.repository.UserRepository;
+
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,9 +42,9 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final CategoryRepository categoryRepository;
-    private final UserRepository userRepository;
     private final EventMapper eventMapper;
     private final RequestRepository requestRepository;
+    private final StatClient client;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
@@ -216,15 +219,12 @@ public class EventServiceImpl implements EventService {
 
         Page<Event> events = eventRepository.findAll(spec, pageable);
 
-        List<Long> eventIds = events.getContent().stream()
-                .map(Event::getId)
-                .collect(Collectors.toList());
-        eventRepository.incrementViewsBatch(eventIds);
-
-        List<Event> updatedEvents = eventRepository.findByIdIn(eventIds);
-
-        return updatedEvents.stream()
-                .map(eventMapper::toEventShortDto)
+        return events.getContent().stream()
+                .map(event -> {
+                    Long views = getViewsClientForList(event);
+                    event.setViews(views);
+                    return eventMapper.toEventShortDto(event);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -239,21 +239,51 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Событие с id=" + id + " не найдено");
         }
 
-        event.setViews(event.getViews() + 1);
-        eventRepository.save(event);
+        Long viewsFromStats = getViewsClient(event);
+        log.info("Просмотры из статистики: {}", viewsFromStats);
+
+        event.setViews(viewsFromStats);
 
         List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
-        int confirmedCount = 0;
-        for (ParticipationRequest request : requests) {
-            if ("CONFIRMED".equals(request.getStatus())) {
-                confirmedCount++;
-            }
-        }
+        int confirmedCount = (int) requests.stream()
+                .filter(request -> "CONFIRMED".equals(request.getStatus()))
+                .count();
 
         EventResponseDto responseDto = eventMapper.toEventResponseDto(event);
         responseDto.setConfirmedRequests(confirmedCount);
 
         return responseDto;
+    }
+
+    private Long getViewsClient(Event event) {
+        try {
+            String uri = "/events/" + event.getId();
+            LocalDateTime publishDate = event.getPublishedOn() != null ?
+                    event.getPublishedOn() : LocalDateTime.now().minusYears(1);
+
+            log.info("URI для статистики: {}, publishDate: {}", uri, publishDate);
+
+            ParamRequest paramRequest = new ParamRequest(
+                    publishDate,
+                    LocalDateTime.now(),
+                    Collections.singletonList(uri),
+                    true);
+
+            List<StatDto> stats = client.getStats(paramRequest);
+
+            log.info("Получено {} записей статистики", stats.size());
+
+            Long totalViews = stats.stream()
+                    .mapToLong(StatDto::getHits)
+                    .sum();
+
+            log.info("Общее количество просмотров из статистики: {}", totalViews);
+            return totalViews;
+
+        } catch (Exception e) {
+            log.error("Ошибка при получении статистики: {}", e.getMessage());
+            return 1L;
+        }
     }
 
     @Override
@@ -262,9 +292,6 @@ public class EventServiceImpl implements EventService {
 
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Событие с id=" + id + " не найдено"));
-
-        eventRepository.incrementViews(id);
-        event.setViews(event.getViews() + 1);
 
         List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
         int confirmedCount = 0;
@@ -306,5 +333,32 @@ public class EventServiceImpl implements EventService {
 
     private int calculatePageNumber(int from, int size) {
         return from / size;
+    }
+
+    private Long getViewsClientForList(Event event) {
+        try {
+            String uri = "/events/" + event.getId();
+            LocalDateTime publishDate = event.getPublishedOn() != null ?
+                    event.getPublishedOn() : LocalDateTime.now().minusYears(1);
+
+            ParamRequest paramRequest = new ParamRequest(
+                    publishDate,
+                    LocalDateTime.now(),
+                    Collections.singletonList(uri),
+                    false);
+
+            List<StatDto> stats = client.getStats(paramRequest);
+
+            Long totalViews = stats.stream()
+                    .mapToLong(StatDto::getHits)
+                    .sum();
+
+            log.info("Просмотры для списка событий {}: {}", event.getId(), totalViews);
+            return totalViews;
+
+        } catch (Exception e) {
+            log.error("Ошибка при получении статистики для списка: {}", e.getMessage());
+            return event.getViews() != null ? event.getViews() : 0L;
+        }
     }
 }
