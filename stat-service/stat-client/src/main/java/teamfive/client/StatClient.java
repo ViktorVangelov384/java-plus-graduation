@@ -71,8 +71,8 @@ public class StatClient {
         return restClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path(serverUrl + "/stats")
-                        .queryParam("start", paramRequest.getStart().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
-                        .queryParam("end", paramRequest.getEnd().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                        .queryParam("start", paramRequest.getStart().toString())
+                        .queryParam("end", paramRequest.getEnd().toString())
                         .queryParam("uris", paramRequest.getUris())
                         .queryParam("unique", paramRequest.getUnique())
                         .build())
