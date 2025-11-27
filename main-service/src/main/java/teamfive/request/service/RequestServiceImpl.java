@@ -62,7 +62,7 @@ public class RequestServiceImpl implements RequestService {
         }
         RequestStatus status = RequestStatus.PENDING;
 
-        boolean isUnlimitedEvent = event.getParticipantLimit() == 0;
+        /*boolean isUnlimitedEvent = event.getParticipantLimit() == 0;
         boolean isModerationDisabled = event.getRequestModeration() == null || !event.getRequestModeration();
         boolean hasAvailableSlots = confirmedCount < event.getParticipantLimit();
 
@@ -78,6 +78,23 @@ public class RequestServiceImpl implements RequestService {
         } else {
             status = RequestStatus.PENDING;
             log.info("Требуется модерация или нет мест - статус PENDING");
+        }*/
+
+        if (event.getParticipantLimit() == 0) {
+            status = RequestStatus.CONFIRMED;
+            log.info("Событие БЕЗ лимита участников - статус CONFIRMED");
+        } else {
+            if (confirmedCount >= event.getParticipantLimit()) {
+                throw new ConflictException("Достигнут лимит участников");
+            }
+
+            if (event.getRequestModeration() == null || !event.getRequestModeration()) {
+                status = RequestStatus.CONFIRMED;
+                log.info("Модерация отключена - статус CONFIRMED");
+            } else {
+                status = RequestStatus.PENDING;
+                log.info("Требуется модерация - статус PENDING");
+            }
         }
 
         UserDto user = userService.get(userId);

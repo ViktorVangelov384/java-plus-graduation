@@ -39,9 +39,9 @@ public class GeneralExceptionHandler {
         return new ErrorResponse(HttpStatus.BAD_REQUEST, reason, e.getMessage(), getStackTrace(e));
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(java.lang.IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse illegalArgumentException(final IllegalArgumentException e) {
+    public ErrorResponse handleStandardIllegalArgumentException(java.lang.IllegalArgumentException e) {
         String reason = "Incorrectly made request.";
         log.warn("{}. {}", reason, e.getMessage());
         return new ErrorResponse(HttpStatus.BAD_REQUEST, reason, e.getMessage(), getStackTrace(e));
