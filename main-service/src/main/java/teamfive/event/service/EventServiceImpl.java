@@ -282,7 +282,7 @@ public class EventServiceImpl implements EventService {
 
         } catch (Exception e) {
             log.error("Ошибка при получении статистики: {}", e.getMessage());
-            return 1L;
+            return 0L;
         }
     }
 
@@ -324,10 +324,10 @@ public class EventServiceImpl implements EventService {
 
     private void validatePaginationParams(int from, int size) {
         if (size <= 0) {
-            throw new IllegalArgumentException("Size must be positive");
+            throw new java.lang.IllegalArgumentException("Size must be positive");
         }
         if (from < 0) {
-            throw new IllegalArgumentException("From must be non-negative");
+            throw new java.lang.IllegalArgumentException("From must be non-negative");
         }
     }
 

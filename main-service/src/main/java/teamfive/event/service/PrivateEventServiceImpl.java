@@ -21,8 +21,6 @@ import teamfive.event.model.EventState;
 import teamfive.event.storage.EventRepository;
 import teamfive.exception.ConflictException;
 import teamfive.exception.NotFoundException;
-import teamfive.exception.ValidationException;
-import teamfive.exception.IllegalArgumentException;
 import teamfive.user.model.User;
 import teamfive.user.repository.UserRepository;
 
@@ -57,8 +55,13 @@ public class PrivateEventServiceImpl implements PrivateEventService {
         }
 
         if (eventRequestDto.getParticipantLimit() != null && eventRequestDto.getParticipantLimit() < 0) {
-            throw new teamfive.exception.IllegalArgumentException("Лимит участников не может быть отрицательным");
+            throw new java.lang.IllegalArgumentException("Лимит участников не может быть отрицательным");
         }
+
+        Integer participantLimit = eventRequestDto.getParticipantLimit() != null ?
+                eventRequestDto.getParticipantLimit() : 0;
+        Boolean requestModeration = eventRequestDto.getRequestModeration() != null ?
+                eventRequestDto.getRequestModeration() : true;
 
         Event event = Event.builder()
                 .annotation(eventRequestDto.getAnnotation())
@@ -136,8 +139,7 @@ public class PrivateEventServiceImpl implements PrivateEventService {
         }
 
         if (updateRequest.getParticipantLimit() != null && updateRequest.getParticipantLimit() < 0) {
-            throw new ValidationException("Число участников участников должно быть больше 0."
-                    + updateRequest.getParticipantLimit());
+            throw new java.lang.IllegalArgumentException("Лимит участников не может быть отрицательным");
         }
 
         if (updateRequest.getAnnotation() != null) {
@@ -173,22 +175,30 @@ public class PrivateEventServiceImpl implements PrivateEventService {
             event.setTitle(updateRequest.getTitle());
         }
 
-        if ("SEND_TO_REVIEW".equals(updateRequest.getStateAction())) {
-            event.setState(EventState.PENDING);
-        } else if ("CANCEL_REVIEW".equals(updateRequest.getStateAction())) {
-            event.setState(EventState.CANCELED);
+        if (updateRequest.getStateAction() != null) {
+            switch (updateRequest.getStateAction()) {
+                case "SEND_TO_REVIEW":
+                    event.setState(EventState.PENDING);
+                    break;
+                case "CANCEL_REVIEW":
+                    event.setState(EventState.CANCELED);
+                    break;
+                default:
+                    log.warn("Неизвестное действие: {}", updateRequest.getStateAction());
+            }
         }
 
         Event updatedEvent = eventRepository.save(event);
         return eventMapper.toEventResponseDto(updatedEvent);
     }
 
+
     private void validatePaginationParams(int from, int size) {
         if (size <= 0) {
-            throw new IllegalArgumentException("Size must be positive");
+            throw new java.lang.IllegalArgumentException("Size must be positive");
         }
         if (from < 0) {
-            throw new IllegalArgumentException("From must be non-negative");
+            throw new java.lang.IllegalArgumentException("From must be non-negative");
         }
     }
 }
