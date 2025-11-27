@@ -6,13 +6,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.rmi.RemoteException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
@@ -56,41 +59,31 @@ public class StatClient {
         }
     }
 
-    public List<StatDto> getStats(String start,
-                                  String end,
-                                  List<String> uris,
-                                  Boolean unique) {
+    public List<StatDto> getStats(ParamRequest paramRequest) {
+        log.warn("ТЫ В ТАНЦАХ????????");
 
-        log.info("Полученные параметры           \nstart=   {}        \nend= {}        \nuris= {}        \nunique = {}", start,
-                 end, uris, unique );
+        // Добавим логи для отслеживания параметров запроса
+        log.info("Start: " + paramRequest.getStart());
+        log.info("End: " + paramRequest.getEnd());
+        log.info("URIs: " + paramRequest.getUris());
+        log.info("Unique: " + paramRequest.getUnique());
 
-
-        if (start == null || end == null) {
-            log.warn("Параметры start и end не могут быть null");
-            return List.of();
-        }
-
-        try {
-            return restClient.get()
-                    .uri(uriBuilder -> {
-                        uriBuilder.path(serverUrl + "/stats")
-                                .queryParam("start", encodeValue(start))
-                                .queryParam("end", encodeValue(end))
-                                .queryParam("unique", unique);
-                        if (uris != null && !uris.isEmpty()) {
-                            uriBuilder.queryParam("uris", String.join(",", uris));
-                        }
-
-                        return uriBuilder.build();
-                    })
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<List<StatDto>>() {
-                    });
-        } catch (Exception e) {
-            log.error("Ошибка при получении статистики. {}", e.getMessage());
-        }
-        return List.of();
+        return restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(serverUrl + "/stats")
+                        .queryParam("start", paramRequest.getStart().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                        .queryParam("end", paramRequest.getEnd().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                        .queryParam("uris", paramRequest.getUris())
+                        .queryParam("unique", paramRequest.getUnique())
+                        .build())
+                .retrieve()
+                .onStatus(status -> status != HttpStatus.OK, (request, response) -> {
+                    log.error("Ошибка при запросе к серверу: " + response.getStatusCode().value() + ": " + response.getBody());
+                    throw new RuntimeException(response.getStatusCode().value() + ": " + response.getBody());
+                })
+                .body(ParameterizedTypeReference.forType(List.class));
     }
+
 
     private String encodeValue(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);

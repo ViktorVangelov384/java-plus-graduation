@@ -1,6 +1,5 @@
 package teamfive.event.service;
 
-import dto.StatDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -12,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import teamfive.category.model.Category;
 import teamfive.category.storage.CategoryRepository;
+import teamfive.client.ParamRequest;
 import teamfive.client.StatClient;
 import teamfive.event.dto.EventResponseDto;
 import teamfive.event.dto.EventShortDto;
@@ -28,8 +28,7 @@ import teamfive.request.model.ParticipationRequest;
 import teamfive.request.repository.RequestRepository;
 import teamfive.user.repository.UserRepository;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -246,19 +245,10 @@ public class EventServiceImpl implements EventService {
         }
         eventRepository.save(event);
 
-        // Тоже костыль)))))
-        List<Event> list = new ArrayList<>();
-        list.add(event);
+        log.warn("ВЫЗОВ СЧЕТЧИКА");
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime inTwoHours = now.plusHours(2);
-
-        log.info("LocalDateTime                        now = {} ", now);
-        log.info("LocalDateTime                      inTwoHours = {} ", inTwoHours);
-
-        event.setViews(getViewsClient(list, now, inTwoHours));
-
-        log.info("Проверка получения просмотров VIEWS= {} ", getViewsClient(list, now, inTwoHours));
+        event.setViews(getViewsClient(event));
+        log.warn("Получение ПРОСМОТРОВ: {}", getViewsClient(event));
 
 
         List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
@@ -275,55 +265,31 @@ public class EventServiceImpl implements EventService {
         return responseDto;
     }
 
-    private Long getViewsClient(List<Event> events, LocalDateTime start, LocalDateTime end) {
-        Map<Long, String> eventIds = events
-                .stream()
-                .collect(Collectors.toMap(
-                        Event::getId,
-                        event -> "/events/" + event.getId()
-                ));
-
-        // ЖЖЖЖЕСТКИЙ костыльль. Пардонте делал наскоряк. Это потому что в клиенте стринги почему то!!!
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        String startForClient = formatter.format(start);
-        String endForClient = formatter.format(end);
-
-// Кодирование параметров
-        /*String encodedStart = URLEncoder.encode(startForClient, StandardCharsets.UTF_8);
-        String encodedEnd = URLEncoder.encode(endForClient, StandardCharsets.UTF_8);*/
-
-        log.info("                startForClient = {} ", startForClient);
-        log.info("                 endForClient = {} ", endForClient);
-
-        Optional<Collection<StatDto>> statDtos = Optional.ofNullable(client.getStats(
-                startForClient,
-                endForClient,
-                eventIds.values().stream().toList(),
-                true
-        ));
-
-        if (statDtos.isPresent() && !statDtos.get().isEmpty()) {
-            Map<String, Long> hitsStats = statDtos.get()
-                    .stream()
-                    .collect(Collectors.toMap(StatDto::getUri, StatDto::getHits));
-
-            long totalViews = statDtos.get()
-                    .stream()
-                    .mapToLong(StatDto::getHits)
-                    .sum();
-
-            events.forEach(event -> {
-                Long hit = hitsStats.get(eventIds.get(event.getId()));
-                event.setViews(Objects.isNull(hit) ? 0L : hit);
-            });
-
-            return totalViews;
-        } else {
-            events.forEach(event -> event.setViews(0L));
-            return 0L;
+    private Long getViewsClient(Event event) {
+        String uri = ("/events/" + event.getId());
+        LocalDateTime publishDate = LocalDateTime.now().minusHours(1);
+        if (event.getPublishedOn() != null) {
+            publishDate = event.getPublishedOn();
         }
+
+        // Добавляем логи в формате log.info для отслеживания значений переменных
+        log.info("URI: " + uri);
+        log.info("Publish Date: " + publishDate);
+
+        ParamRequest paramRequest = new ParamRequest(
+                publishDate, LocalDateTime.now(), Collections.singletonList(uri), true);
+
+        // Логирование запроса перед вызовом метода getStats
+        log.info("ParamRequest: " + paramRequest);
+
+        Long views = (long) client.getStats(paramRequest).size();
+
+        // Лог результата
+        log.info("Views: " + views);
+
+        return views;
     }
+
 
 
     @Override
