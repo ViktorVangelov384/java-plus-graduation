@@ -31,13 +31,22 @@ public class StatServiceImpl implements StatService {
                 start, end, uris, unique);
 
         List<StatHit> statHitList;
-        if (unique) {
-            statHitList = statRepository.getUniqueStat(start, end, uris);
+        if (uris == null || uris.isEmpty()) {
+            if (unique) {
+                statHitList = statRepository.getUniqueStat(start, end, null);
+            } else {
+                statHitList = statRepository.getNonUniqueStat(start, end, null);
+            }
         } else {
-            statHitList = statRepository.getNonUniqueStat(start, end, uris);
+            if (unique) {
+                statHitList = statRepository.getUniqueStat(start, end, uris);
+            } else {
+                statHitList = statRepository.getNonUniqueStat(start, end, uris);
+            }
         }
         return statHitList.stream().map(mapper::statHitToStatDto)
                 .collect(Collectors.toList());
+
     }
 
     @Transactional

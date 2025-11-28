@@ -15,6 +15,10 @@ public interface RequestMapper {
     @Mapping(source = "status", target = "status")
     ParticipationRequestDto toDto(ParticipationRequest request);
 
-
-
+    default ParticipationRequestDto toDtoSafe(ParticipationRequest request) {
+        if (request == null) {
+            return null;
+        }
+        return toDto(request);
+    }
 }
