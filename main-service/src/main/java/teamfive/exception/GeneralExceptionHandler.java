@@ -2,7 +2,6 @@ package teamfive.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -47,14 +46,12 @@ public class GeneralExceptionHandler {
         return new ErrorResponse(HttpStatus.BAD_REQUEST, reason, e.getMessage(), getStackTrace(e));
     }
 
-    //ToDO: Андрей - обсудить с Кириллом, что это? и зачем?
-    // Добавил что бы обновление проверить можно и убрать
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleUserNotFound(MethodArgumentNotValidException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problem.setTitle("Ошибка валидации.");
-        problem.setProperty("error", "Ошибка валидации.");
-        return problem;
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleUserNotFound(MethodArgumentNotValidException e) {
+        String reason = "Incorrectly made request.";
+        log.warn("{}. {}", reason, e.getMessage());
+        return new ErrorResponse(HttpStatus.BAD_REQUEST, reason, e.getMessage(), getStackTrace(e));
     }
 
     private String getStackTrace(Exception e) {

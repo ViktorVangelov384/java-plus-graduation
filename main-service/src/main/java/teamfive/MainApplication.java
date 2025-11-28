@@ -23,9 +23,6 @@ public class MainApplication {
         try {
             log.info("main-service: тестирование StatClient после запуска");
 
-            String request = statClient.sayHello("main - service");
-            log.info("stat-client ответил {}", request);
-            log.info("main-service: stat-client ok");
 
         } catch (Exception e) {
             log.info("main-service: ошибка при использовании StatClient: {}", e.getMessage());

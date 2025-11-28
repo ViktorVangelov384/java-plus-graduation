@@ -31,13 +31,6 @@ public class StatClient {
         this.appName = appName;
     }
 
-    public String sayHello(String iName) {
-        if (iName.isEmpty()) {
-            return "Привет тебе, чудо - незнакомец! тебя приветствует самый лучший в мире stat-server!";
-        }
-        return "Привет тебе, " + iName + "! тебя приветствует самый лучший в мире stat-server!";
-    }
-
     public void hit(HttpServletRequest request) {
         try {
             InputHitDto hitDto = new InputHitDto();

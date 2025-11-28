@@ -36,9 +36,6 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     @Override
     public OutputCategoryDto createCategory(InputCategoryDto inputCategoryDto) {
-        if (inputCategoryDto.getName() == null || inputCategoryDto.getName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Category name cannot be blank");
-        }
 
         Category category = mapper.inputDtoToCategory(inputCategoryDto);
         log.info("Создаю category: name = {}", category.getName());
