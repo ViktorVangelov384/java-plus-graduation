@@ -45,56 +45,6 @@ public class RequestServiceImpl implements RequestService {
         log.info("Создание запроса: userId={}, eventId={}, eventState={}, participantLimit={}",
                 userId, eventId, event.getState(), event.getParticipantLimit());
 
-        /*if (repository.findByEventIdAndRequesterId(eventId, userId).isPresent())
-            throw new DuplicatedException("Такая заявка уже создана");
-
-        if (event.getInitiator().getId().equals(userId))
-            throw new ConflictException("Инициатор события не может добавить запрос на участие в своём событии");
-
-        if (!EventState.PUBLISHED.toString().equals(event.getState())) {
-            throw new ConflictException("Нельзя участвовать в неопубликованном событии");
-        }
-
-        int confirmedCount = repository.findAllByEventIdAndStatus(eventId, RequestStatus.CONFIRMED.toString()).size();
-
-
-        if (event.getParticipantLimit() > 0 && confirmedCount >= event.getParticipantLimit()) {
-            throw new ConflictException("Достигнут лимит участников");
-        }
-        RequestStatus status = RequestStatus.PENDING;
-
-        if (event.getParticipantLimit() == 0) {
-            status = RequestStatus.CONFIRMED;
-            log.info("Событие БЕЗ лимита участников - статус CONFIRMED");
-        } else {
-            if (confirmedCount >= event.getParticipantLimit()) {
-                throw new ConflictException("Достигнут лимит участников");
-            }
-
-            if (event.getRequestModeration() == null || !event.getRequestModeration()) {
-                status = RequestStatus.CONFIRMED;
-                log.info("Модерация отключена - статус CONFIRMED");
-            } else {
-                status = RequestStatus.PENDING;
-                log.info("Требуется модерация - статус PENDING");
-            }
-        }
-
-        UserDto user = userService.get(userId);
-
-
-        ParticipationRequest request = ParticipationRequest.builder()
-                .requesterId(user.getId())
-                .eventId(event.getId())
-                .status(status.toString())
-                .created(LocalDateTime.now())
-                .build();
-
-        ParticipationRequest participationRequest = repository.save(request);
-        repository.flush();
-        log.info("Запрос успешно создан. Параметры: {}", participationRequest);
-        return mapper.toDto(participationRequest);
-    }*/
         try {
             UserDto user = userService.get(userId);
             if (user == null) {
@@ -148,12 +98,6 @@ public class RequestServiceImpl implements RequestService {
                 }
             }
 
-            /*ParticipationRequest request = ParticipationRequest.builder()
-                    .requesterId(user.getId())
-                    .eventId(event.getId())
-                    .status(status.toString())
-                    .created(LocalDateTime.now())
-                    .build();*/
             ParticipationRequest request = ParticipationRequest.builder()
                     .requesterId(userId)
                     .eventId(eventId)
@@ -162,9 +106,7 @@ public class RequestServiceImpl implements RequestService {
                     .build();
 
             ParticipationRequest savedRequest = repository.save(request);
-            /*log.info("Запрос создан: id={}, status={}", savedRequest.getId(), status);
 
-            return mapper.toDto(savedRequest);*/
             ParticipationRequestDto result = mapper.toDtoSafe(savedRequest);
             if (result == null) {
                 throw new RuntimeException("Ошибка преобразования данных запроса");
@@ -235,12 +177,9 @@ public class RequestServiceImpl implements RequestService {
                 return mapper.toDtoSafe(request);
             }
 
-            //request.setStatus(RequestStatus.CANCELED.toString());
-            //ParticipationRequest updatedRequest = repository.save(request);
             log.info("Статус заявки изменен: requestId={}, oldStatus={}, newStatus=CANCELED",
                     requestId, currentStatus);
 
-            //ParticipationRequestDto result = mapper.toDtoSafe(updatedRequest);
             request.setStatus(RequestStatus.CANCELED.toString());
             ParticipationRequest updatedRequest = repository.save(request);
             log.info("Статус заявки изменен: requestId={}, oldStatus={}, newStatus=CANCELED",
@@ -275,9 +214,6 @@ public class RequestServiceImpl implements RequestService {
 
             return result;
 
-            //return requests.stream()
-            //      .map(mapper::toDto)
-            //    .collect(Collectors.toList());
         } catch (DataAccessException e) {
             log.error("Ошибка доступа к данным при получении запросов для события {}: {}", eventId, e.getMessage(), e);
             throw new RuntimeException("Ошибка базы данных при получении запросов события");
