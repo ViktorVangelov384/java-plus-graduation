@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import teamfive.event.dto.EventRequestStatusUpdateRequest;
+import teamfive.request.dto.EventRequestStatusUpdateResult;
 import teamfive.request.dto.ParticipationRequestDto;
 import teamfive.request.service.RequestService;
 
@@ -33,7 +34,7 @@ public class EventRequestController {
     }
 
     @PatchMapping
-    public ResponseEntity<List<ParticipationRequestDto>> updateEventRequests(
+    public ResponseEntity<EventRequestStatusUpdateResult> updateEventRequests(
             @PathVariable @Positive Long userId,
             @PathVariable @Positive Long eventId,
             @RequestBody EventRequestStatusUpdateRequest updateRequest) {
@@ -41,7 +42,7 @@ public class EventRequestController {
         log.info("PATCH: Обновление запросов на участие в событии. userId={}, eventId={}, updateRequest={}",
                 userId, eventId, updateRequest);
 
-        List<ParticipationRequestDto> updatedRequests = requestService.updateRequestStatuses(userId, eventId, updateRequest);
+        EventRequestStatusUpdateResult updatedRequests = requestService.updateRequestStatuses(userId, eventId, updateRequest);
         return ResponseEntity.ok(updatedRequests);
     }
 }
