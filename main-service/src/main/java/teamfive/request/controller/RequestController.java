@@ -45,5 +45,6 @@ public class RequestController {
                                                  @PathVariable @Positive Long requestId) {
         log.info("PATCH: Отмена участия userId={}, в requestId={}", userId, requestId);
         return requestService.cancelRequest(userId, requestId);
+
     }
 }

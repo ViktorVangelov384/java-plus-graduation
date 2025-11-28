@@ -14,6 +14,7 @@ import teamfive.event.storage.EventRepository;
 import teamfive.exception.ConflictException;
 import teamfive.exception.DuplicatedException;
 import teamfive.exception.NotFoundException;
+import teamfive.request.dto.EventRequestStatusUpdateResult;
 import teamfive.request.dto.ParticipationRequestDto;
 import teamfive.request.enums.RequestStatus;
 import teamfive.request.mapper.RequestMapper;
@@ -138,11 +139,6 @@ public class RequestServiceImpl implements RequestService {
             List<ParticipationRequest> requests = repository.findAllByRequesterId(userId);
             log.info("Найдено {} заявок для пользователя {}", requests.size(), userId);
 
-            List<ParticipationRequestDto> result = requests.stream()
-                    .map(mapper::toDtoSafe)
-                    .filter(dto -> dto != null)
-                    .collect(Collectors.toList());
-
             return requests.stream()
                     .map(mapper::toDto)
                     .collect(Collectors.toList());
@@ -224,82 +220,92 @@ public class RequestServiceImpl implements RequestService {
     }
 
 
-@Override
-@Transactional
-public List<ParticipationRequestDto> updateRequestStatuses(Long userId, Long eventId,
-                                                           EventRequestStatusUpdateRequest updateRequest) {
-    log.info("Обновление статусов запросов: userId={}, eventId={}, requestIds={}, status={}",
-            userId, eventId, updateRequest.getRequestIds(), updateRequest.getStatus());
+    @Override
+    @Transactional
+    public EventRequestStatusUpdateResult updateRequestStatuses(Long userId, Long eventId,
+                                                                EventRequestStatusUpdateRequest updateRequest) {
+        log.info("Обновление статусов запросов: userId={}, eventId={}, requestIds={}, status={}",
+                userId, eventId, updateRequest.getRequestIds(), updateRequest.getStatus());
 
-    EventResponseDto event = eventService.getEventByIdForInternalUse(eventId);
+        EventResponseDto event = eventService.getEventByIdForInternalUse(eventId);
 
-    if (event.getInitiator() == null || !event.getInitiator().getId().equals(userId)) {
-        throw new ConflictException("Только инициатор события может обновлять запросы на участие");
-    }
-
-    List<ParticipationRequest> confirmedRequests = repository.findAllByEventIdAndStatus(eventId, RequestStatus.CONFIRMED.toString());
-    int currentConfirmed = confirmedRequests.size();
-    int participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
-
-    if (RequestStatus.CONFIRMED.toString().equals(updateRequest.getStatus()) && participantLimit > 0) {
-        int requestsToConfirm = updateRequest.getRequestIds().size();
-
-        if (currentConfirmed + requestsToConfirm > participantLimit) {
-            throw new ConflictException("Достигнут лимит участников события");
-        }
-    }
-
-    List<ParticipationRequest> requestsToUpdate = repository.findAllByIdIn(updateRequest.getRequestIds());
-
-    if (requestsToUpdate.size() != updateRequest.getRequestIds().size()) {
-        throw new NotFoundException("Некоторые запросы не найдены");
-    }
-
-    int newlyConfirmed = 0;
-    int newlyRejected = 0;
-
-    for (ParticipationRequest request : requestsToUpdate) {
-        if (!request.getEventId().equals(eventId)) {
-            throw new ConflictException("Запрос не принадлежит указанному событию");
+        if (event.getInitiator() == null || !event.getInitiator().getId().equals(userId)) {
+            throw new ConflictException("Только инициатор события может обновлять запросы на участие");
         }
 
-        if (!RequestStatus.PENDING.toString().equals(request.getStatus())) {
-            throw new ConflictException("Можно изменять только запросы в статусе PENDING");
+        List<ParticipationRequest> existingConfirmedRequests = repository.findAllByEventIdAndStatus(eventId, RequestStatus.CONFIRMED.toString());
+        int currentConfirmed = existingConfirmedRequests.size();
+        int participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
+
+        if (RequestStatus.CONFIRMED.toString().equals(updateRequest.getStatus()) && participantLimit > 0) {
+            int requestsToConfirm = updateRequest.getRequestIds().size();
+
+            if (currentConfirmed + requestsToConfirm > participantLimit) {
+                throw new ConflictException("Достигнут лимит участников события");
+            }
         }
 
-        if (RequestStatus.CONFIRMED.toString().equals(updateRequest.getStatus())) {
-            newlyConfirmed++;
-        } else if (RequestStatus.REJECTED.toString().equals(updateRequest.getStatus())) {
-            newlyRejected++;
+        List<ParticipationRequest> requestsToUpdate = repository.findAllByIdIn(updateRequest.getRequestIds());
+
+        if (requestsToUpdate.size() != updateRequest.getRequestIds().size()) {
+            throw new NotFoundException("Некоторые запросы не найдены");
         }
 
-        request.setStatus(updateRequest.getStatus());
+        int newlyConfirmed = 0;
+        int newlyRejected = 0;
+
+        for (ParticipationRequest request : requestsToUpdate) {
+            if (!request.getEventId().equals(eventId)) {
+                throw new ConflictException("Запрос не принадлежит указанному событию");
+            }
+
+            if (!RequestStatus.PENDING.toString().equals(request.getStatus())) {
+                throw new ConflictException("Можно изменять только запросы в статусе PENDING");
+            }
+
+            if (RequestStatus.CONFIRMED.toString().equals(updateRequest.getStatus())) {
+                newlyConfirmed++;
+            } else if (RequestStatus.REJECTED.toString().equals(updateRequest.getStatus())) {
+                newlyRejected++;
+            }
+
+            request.setStatus(updateRequest.getStatus());
+        }
+
+        List<ParticipationRequest> updatedRequests = repository.saveAll(requestsToUpdate);
+        repository.flush();
+
+        if (newlyConfirmed > 0 || newlyRejected > 0) {
+            updateEventConfirmedRequests(eventId, newlyConfirmed, newlyRejected);
+        }
+
+        log.info("Статусы запросов успешно обновлены");
+
+        List<ParticipationRequestDto> updatedDtos = updatedRequests.stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+
+        List<ParticipationRequestDto> confirmedRequests = updatedDtos.stream()
+                .filter(dto -> RequestStatus.CONFIRMED.toString().equals(dto.getStatus()))
+                .collect(Collectors.toList());
+
+        List<ParticipationRequestDto> rejectedRequests = updatedDtos.stream()
+                .filter(dto -> RequestStatus.REJECTED.toString().equals(dto.getStatus()))
+                .collect(Collectors.toList());
+
+        return new EventRequestStatusUpdateResult(confirmedRequests, rejectedRequests);
     }
 
-    List<ParticipationRequest> updatedRequests = repository.saveAll(requestsToUpdate);
-    repository.flush();
+    private void updateEventConfirmedRequests(Long eventId, int newlyConfirmed, int newlyRejected) {
 
-    if (newlyConfirmed > 0 || newlyRejected > 0) {
-        updateEventConfirmedRequests(eventId, newlyConfirmed, newlyRejected);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
+
+        int currentConfirmed = event.getConfirmedRequests() != null ? event.getConfirmedRequests() : 0;
+        event.setConfirmedRequests(currentConfirmed + newlyConfirmed - newlyRejected);
+
+        eventRepository.save(event);
+        log.info("Обновлен счетчик подтвержденных запросов для события {}: {}", eventId, event.getConfirmedRequests());
     }
-
-    log.info("Статусы запросов успешно обновлены");
-
-    return updatedRequests.stream()
-            .map(mapper::toDto)
-            .collect(Collectors.toList());
-}
-
-private void updateEventConfirmedRequests(Long eventId, int newlyConfirmed, int newlyRejected) {
-
-    Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new NotFoundException("Событие с id=" + eventId + " не найдено"));
-
-    int currentConfirmed = event.getConfirmedRequests() != null ? event.getConfirmedRequests() : 0;
-    event.setConfirmedRequests(currentConfirmed + newlyConfirmed - newlyRejected);
-
-    eventRepository.save(event);
-    log.info("Обновлен счетчик подтвержденных запросов для события {}: {}", eventId, event.getConfirmedRequests());
-}
 }
 

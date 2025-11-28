@@ -2,6 +2,7 @@ package teamfive.request.service;
 
 import teamfive.event.dto.EventRequestStatusUpdateRequest;
 import teamfive.event.dto.EventResponseDto;
+import teamfive.request.dto.EventRequestStatusUpdateResult;
 import teamfive.request.dto.ParticipationRequestDto;
 
 import java.util.List;
@@ -16,6 +17,6 @@ public interface RequestService {
 
     List<ParticipationRequestDto> getRequestsForUserEvent(Long userId, Long eventId);
 
-    List<ParticipationRequestDto> updateRequestStatuses(Long userId, Long eventId,
-                                                        EventRequestStatusUpdateRequest updateRequest);
+    EventRequestStatusUpdateResult updateRequestStatuses(Long userId, Long eventId,
+                                                         EventRequestStatusUpdateRequest updateRequest);
 }
