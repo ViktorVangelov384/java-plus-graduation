@@ -1,18 +1,19 @@
 package teamfive.client;
 
+import dto.InputHitDto;
+import dto.StatDto;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import dto.InputHitDto;
-import dto.StatDto;
 
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
@@ -37,6 +38,7 @@ public class StatClient {
             hitDto.setUri(request.getRequestURI());
             hitDto.setIp(getClientIpAddress(request));
             hitDto.setTimestamp(LocalDateTime.now());
+            log.warn("StatClient - CTAT");
 
             restClient.post().uri(serverUrl + "/hit")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -48,40 +50,48 @@ public class StatClient {
         }
     }
 
-    public List<StatDto> getStats(String start,
-                                  String end,
-                                  List<String> uris,
-                                  Boolean unique) {
-
-        if (start == null || end == null) {
-            log.warn("Параметры start и end не могут быть null");
-            return List.of();
-        }
+    public List<StatDto> getStats(ParamRequest paramRequest) {
 
         try {
-            return restClient.get()
-                    .uri(uriBuilder -> {
-                        uriBuilder.path(serverUrl + "/stats")
-                                .queryParam("start", encodeValue(start))
-                                .queryParam("end", encodeValue(end))
-                                .queryParam("unique", unique);
-                        if (uris != null && !uris.isEmpty()) {
-                            uriBuilder.queryParam("uris", String.join(",", uris));
-                        }
+            log.info("Получение статистики с параметрами: start={}, end={}, uris={}, unique={}",
+                    paramRequest.getStart(), paramRequest.getEnd(), paramRequest.getUris(), paramRequest.getUnique());
 
-                        return uriBuilder.build();
-                    })
+            String baseUrl = serverUrl;
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            String startFormatted = paramRequest.getStart().format(formatter);
+            String endFormatted = paramRequest.getEnd().format(formatter);
+
+            String finalUrl = String.format("%s/stats?start=%s&end=%s&unique=%s",
+                    baseUrl, startFormatted, endFormatted, paramRequest.getUnique());
+
+            if (paramRequest.getUris() != null && !paramRequest.getUris().isEmpty()) {
+                for (String uri : paramRequest.getUris()) {
+                    finalUrl += "&uris=" + uri;
+                }
+            }
+
+            log.info("Final URL: {}", finalUrl);
+
+            return restClient.get()
+                    .uri(finalUrl)
                     .retrieve()
+                    .onStatus(status -> status != HttpStatus.OK, (request, response) -> {
+                        String errorBody = "Не удалось прочитать тело ошибки";
+                        try {
+                            errorBody = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                        } catch (Exception e) {
+                            log.error("Ошибка при чтении тела ответа: {}", e.getMessage());
+                        }
+                        log.error("Ошибка при запросе к серверу: {}: {}", response.getStatusCode().value(), errorBody);
+                        throw new RuntimeException("Ошибка статистики: " + response.getStatusCode().value() + ": " + errorBody);
+                    })
                     .body(new ParameterizedTypeReference<List<StatDto>>() {
                     });
         } catch (Exception e) {
-            log.error("Ошибка при получении статистики. {}", e.getMessage());
+            log.error("Исключение при запросе статистики: {}", e.getMessage(), e);
+            throw new RuntimeException("Ошибка при запросе статистики: " + e.getMessage(), e);
         }
-        return List.of();
-    }
-
-    private String encodeValue(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private String getClientIpAddress(HttpServletRequest request) {
