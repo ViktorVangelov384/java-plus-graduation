@@ -16,6 +16,6 @@ public class InputCommentDto {
     private Long eventId;
 
     @NotNull
-    @Size(min =1, max = 1000)
+    @Size(min = 1, max = 1000)
     private String text;
 }

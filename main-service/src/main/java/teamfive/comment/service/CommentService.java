@@ -1,8 +1,11 @@
 package teamfive.comment.service;
 
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import teamfive.comment.dto.CommentDto;
@@ -21,6 +24,7 @@ import teamfive.user.model.User;
 import teamfive.user.service.UserService;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -78,7 +82,25 @@ public class CommentService {
     }
 
     public void checkExistsById(Long id) {
-        if(!repository.existsById(id))
+        if (!repository.existsById(id))
             throw new NotFoundException("Комментарий с id={" + id + "} не найден");
+    }
+
+    public List<CommentDto> get(Long eventId) {
+        return repository.getAllByEventId(eventId)
+                .stream().map(mapper::toCommentDto).toList();
+    }
+
+    public List<CommentDto> getAllForUser(Long userId) {
+        return repository.getAllByUserId(userId)
+                .stream().map(mapper::toCommentDto).toList();
+    }
+
+    public List<CommentDto> getAll(int from, int size) {
+        Pageable pageable = PageRequest.of(from / size, size, Sort.by(Sort.Direction.ASC, "created"));
+
+        Page<Comment> comments = repository.findAll(pageable);
+
+        return comments.stream().map(mapper::toCommentDto).toList();
     }
 }
