@@ -1,10 +1,7 @@
 package teamfive.comment.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import teamfive.event.model.Event;
 import teamfive.user.model.User;
 
@@ -16,6 +13,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "comments")
+@ToString
 public class Comment {
 
     @Id
