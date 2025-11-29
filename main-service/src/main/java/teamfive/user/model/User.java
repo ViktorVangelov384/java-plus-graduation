@@ -4,15 +4,14 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 @ToString
 @Getter
 @Setter
 @Entity
 @Table(name = "users")
+@NoArgsConstructor
 public class User {
 
     @Id
