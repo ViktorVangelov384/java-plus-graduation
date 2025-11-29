@@ -39,7 +39,7 @@ public class CommentController {
     public void deleteForOwner(@PathVariable @Positive Long userId,
                                @PathVariable Long commentId) {
         log.info("DELETE: Удаление комментария (Id={}) создателем (Id={})", userId, commentId);
-        service.deleteByIdByOwner(userId, commentId);
+        service.deleteForOwner(userId, commentId);
     }
 
 

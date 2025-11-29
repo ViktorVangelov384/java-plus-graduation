@@ -59,7 +59,7 @@ public class CommentService {
     public void deleteByIdByAdmin(Long id) {
         checkExistsById(id);
         repository.deleteById(id);
-        log.debug("Комментарий с id={}, удален.", id);
+        log.debug("Комментарий с id={}, удален администратором.", id);
     }
 
     @Transactional
@@ -74,9 +74,8 @@ public class CommentService {
             throw new ConflictException("Удаление не возможно. Обратитесь к администратору или владельцу.");
         }
         repository.deleteById(commentId);
-        log.debug("Комментарий с id={}, удален.", commentId);
+        log.debug("Комментарий с id={}, удален владельцем.", commentId);
     }
-
 
     public void checkExistsById(Long id) {
         if(!repository.existsById(id))
