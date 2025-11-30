@@ -10,6 +10,6 @@ import lombok.*;
 @AllArgsConstructor
 public class UpdateCommentDto {
     @NotBlank
-    @Size(min = 1, max = 2000)
+    @Size(min = 1, max = 1000)
     private String text;
 }

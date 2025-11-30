@@ -2,10 +2,6 @@ package teamfive.comment.service;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import teamfive.comment.dto.CommentDto;
@@ -76,6 +72,7 @@ public class CommentService {
     }
 
     public List<CommentDto> getByEventId(Long eventId) {
+        EventResponseDto eventResponseDto = eventService.getEventById(eventId);
         return repository.getAllByEventId(eventId)
                 .stream()
                 .map(mapper::toCommentDto)
@@ -83,17 +80,9 @@ public class CommentService {
     }
 
     public List<CommentDto> getAllForUser(Long userId) {
+        UserDto user = userService.get(userId);
         return repository.getAllByUserId(userId)
                 .stream()
-                .map(mapper::toCommentDto)
-                .toList();
-    }
-
-    public List<CommentDto> getAll(int from, int size) {
-        Pageable pageable = PageRequest.of(from / size, size, Sort.by(Sort.Direction.ASC, "created"));
-        Page<Comment> comments = repository.findAll(pageable);
-
-        return comments.stream()
                 .map(mapper::toCommentDto)
                 .toList();
     }
@@ -148,7 +137,7 @@ public class CommentService {
 
     private void validateCommentOwnership(Long userId, Comment comment) {
         if (!comment.getUser().getId().equals(userId)) {
-            throw new ConflictException("Обновлять комментарий может только автор или администратор");
+            throw new ConflictException("Обновлять комментарий может только автор!");
         }
     }
 }

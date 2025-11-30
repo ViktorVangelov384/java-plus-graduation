@@ -2,7 +2,6 @@ package teamfive.comment.controller;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,28 +16,21 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/comments")
+@RequestMapping("/user/{userId}/comments")
 @RequiredArgsConstructor
 @Validated
-public class CommentController {
+public class PrivateCommentController {
     private final CommentService service;
 
-    @PostMapping("/user/{userId}")
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CommentDto create(@PathVariable @Positive Long userId,
-                                    @Valid @RequestBody InputCommentDto comment) {
+                             @Valid @RequestBody InputCommentDto comment) {
         log.info("POST: Создание комментария. Входные параметры: userId={} comment={}", userId, comment);
         return service.create(userId, comment);
     }
 
-    @DeleteMapping("/admin/{commentId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteForAdmin(@PathVariable @Positive Long commentId) {
-        log.info("DELETE: Удаление комментария (Id={}) администратором.", commentId);
-        service.deleteByIdByAdmin(commentId);
-    }
-
-    @DeleteMapping("/user/{userId}/comment/{commentId}")
+    @DeleteMapping("/{commentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteForOwner(@PathVariable @Positive Long userId,
                                @PathVariable Long commentId) {
@@ -46,27 +38,7 @@ public class CommentController {
         service.deleteForOwner(userId, commentId);
     }
 
-    @GetMapping("/event/{eventId}")
-    public List<CommentDto> get(@PathVariable @Positive Long eventId) {
-        log.info("GET: Получение списка комментариев события (Id={}", eventId);
-        return service.getByEventId(eventId);
-    }
-
-    @GetMapping("/user/{userId}")
-    public List<CommentDto> getUserComments(
-            @PathVariable @Positive Long userId) {
-        log.info("GET: Получение списка комментариев пользователя (Id={}", userId);
-        return service.getAllForUser(userId);
-    }
-
-    @GetMapping
-    public List<CommentDto> getAllComments(
-            @RequestParam(defaultValue = "0") @PositiveOrZero Integer from,
-            @RequestParam(defaultValue = "10") @Positive Integer size) {
-        return service.getAll(from, size);
-    }
-
-    @PatchMapping("/user/{userId}/comment/{commentId}")
+    @PatchMapping("/{commentId}")
     public CommentDto update(@PathVariable @Positive Long userId,
                              @PathVariable Long commentId,
                              @Valid @RequestBody UpdateCommentDto updateCommentDto) {
@@ -74,4 +46,11 @@ public class CommentController {
         return service.updateComment(commentId, userId, updateCommentDto);
     }
 
+    @GetMapping
+    public List<CommentDto> getUserComments(
+            @PathVariable @Positive Long userId) {
+        log.info("GET: Получение списка комментариев пользователя (Id={}", userId);
+        return service.getAllForUser(userId);
+    }
 }
+
