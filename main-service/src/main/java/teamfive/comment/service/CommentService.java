@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import teamfive.comment.dto.CommentDto;
 import teamfive.comment.dto.InputCommentDto;
+import teamfive.comment.dto.UpdateCommentDto;
 import teamfive.comment.mapper.CommentMapper;
 import teamfive.comment.model.Comment;
 import teamfive.comment.repository.CommentRepository;
@@ -25,7 +26,6 @@ import teamfive.user.service.UserService;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -38,69 +38,117 @@ public class CommentService {
     private final CommentMapper mapper;
 
     @Transactional
-    public CommentDto create(Long userId, InputCommentDto comment) {
+    public CommentDto create(Long userId, InputCommentDto commentDto) {
         UserDto user = userService.get(userId);
-        EventResponseDto event = eventService.getEventById(comment.getEventId());
-        if (!event.getState().equals(EventState.PUBLISHED.toString()))
-            throw new ConflictException("Событие не опубликовано. Комментарии запрещены");
+        EventResponseDto event = eventService.getEventById(commentDto.getEventId());
 
-        User relatedUser = new User();
-        relatedUser.setId(user.getId());
+        validateEventState(event);
 
-        Event relatedEvent = new Event();
-        relatedEvent.setId(event.getId());
+        Comment comment = buildComment(user, event, commentDto.getText());
+        log.debug("Комментарий перед сохранением: {}", comment);
 
-        Comment addCom = new Comment();
-        addCom.setUser(relatedUser);
-        addCom.setEvent(relatedEvent);
-        addCom.setText(comment.getText());
-        addCom.setCreated(LocalDateTime.now());
-        log.debug("Коммент перед сохранением {}", addCom);
-        return mapper.toCommentDto(repository.save(addCom));
+        return mapper.toCommentDto(repository.save(comment));
     }
 
     @Transactional
     public void deleteByIdByAdmin(Long id) {
         checkExistsById(id);
         repository.deleteById(id);
-        log.debug("Комментарий с id={}, удален администратором.", id);
+        log.debug("Комментарий с id={} удален администратором", id);
     }
 
     @Transactional
     public void deleteForOwner(Long userId, Long commentId) {
-        Optional<Comment> optionalComment = repository.findById(commentId);
-        if (optionalComment.isEmpty()) {
-            throw new NotFoundException("Комментарий с id={" + commentId + "} не найден");
+        Comment comment = findCommentById(commentId);
+
+        if (!comment.getUser().getId().equals(userId)) {
+            throw new ConflictException("Удаление невозможно. Обратитесь к администратору или владельцу");
         }
 
-        Comment comment = optionalComment.get();
-        if (!comment.getUser().getId().equals(userId)) {
-            throw new ConflictException("Удаление не возможно. Обратитесь к администратору или владельцу.");
-        }
         repository.deleteById(commentId);
-        log.debug("Комментарий с id={}, удален владельцем.", commentId);
+        log.debug("Комментарий с id={} удален владельцем", commentId);
     }
 
     public void checkExistsById(Long id) {
-        if (!repository.existsById(id))
+        if (!repository.existsById(id)) {
             throw new NotFoundException("Комментарий с id={" + id + "} не найден");
+        }
     }
 
-    public List<CommentDto> get(Long eventId) {
+    public List<CommentDto> getByEventId(Long eventId) {
         return repository.getAllByEventId(eventId)
-                .stream().map(mapper::toCommentDto).toList();
+                .stream()
+                .map(mapper::toCommentDto)
+                .toList();
     }
 
     public List<CommentDto> getAllForUser(Long userId) {
         return repository.getAllByUserId(userId)
-                .stream().map(mapper::toCommentDto).toList();
+                .stream()
+                .map(mapper::toCommentDto)
+                .toList();
     }
 
     public List<CommentDto> getAll(int from, int size) {
         Pageable pageable = PageRequest.of(from / size, size, Sort.by(Sort.Direction.ASC, "created"));
-
         Page<Comment> comments = repository.findAll(pageable);
 
-        return comments.stream().map(mapper::toCommentDto).toList();
+        return comments.stream()
+                .map(mapper::toCommentDto)
+                .toList();
+    }
+
+    @Transactional
+    public CommentDto updateComment(Long commentId, Long userId, UpdateCommentDto dto) {
+        checkExistsById(commentId);
+        Comment existingComment = findCommentById(commentId);
+
+        validateCommentOwnership(userId, existingComment);
+
+        if (dto.getText() != null) {
+            existingComment.setText(dto.getText());
+            repository.save(existingComment);
+        }
+
+        return get(commentId);
+    }
+
+    public CommentDto get(Long id) {
+        return repository.findById(id)
+                .map(mapper::toCommentDto)
+                .orElseThrow(() -> new NotFoundException("Комментарий с id={" + id + "} не найден"));
+    }
+
+    private void validateEventState(EventResponseDto event) {
+        if (!event.getState().equals(EventState.PUBLISHED.toString())) {
+            throw new ConflictException("Событие не опубликовано. Комментарии запрещены");
+        }
+    }
+
+    private Comment buildComment(UserDto user, EventResponseDto event, String text) {
+        User relatedUser = new User();
+        relatedUser.setId(user.getId());
+
+        Event relatedEvent = new Event();
+        relatedEvent.setId(event.getId());
+
+        Comment comment = new Comment();
+        comment.setUser(relatedUser);
+        comment.setEvent(relatedEvent);
+        comment.setText(text);
+        comment.setCreated(LocalDateTime.now());
+
+        return comment;
+    }
+
+    private Comment findCommentById(Long commentId) {
+        return repository.findById(commentId)
+                .orElseThrow(() -> new NotFoundException("Комментарий с id={" + commentId + "} не найден"));
+    }
+
+    private void validateCommentOwnership(Long userId, Comment comment) {
+        if (!comment.getUser().getId().equals(userId)) {
+            throw new ConflictException("Обновлять комментарий может только автор или администратор");
+        }
     }
 }

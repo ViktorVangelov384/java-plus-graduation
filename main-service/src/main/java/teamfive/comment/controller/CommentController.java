@@ -10,6 +10,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import teamfive.comment.dto.CommentDto;
 import teamfive.comment.dto.InputCommentDto;
+import teamfive.comment.dto.UpdateCommentDto;
 import teamfive.comment.service.CommentService;
 
 import java.util.List;
@@ -48,12 +49,13 @@ public class CommentController {
     @GetMapping("/event/{eventId}")
     public List<CommentDto> get(@PathVariable @Positive Long eventId) {
         log.info("GET: Получение списка комментариев события (Id={}", eventId);
-        return service.get(eventId);
+        return service.getByEventId(eventId);
     }
 
     @GetMapping("/user/{userId}")
     public List<CommentDto> getUserComments(
             @PathVariable @Positive Long userId) {
+        log.info("GET: Получение списка комментариев пользователя (Id={}", userId);
         return service.getAllForUser(userId);
     }
 
@@ -63,4 +65,13 @@ public class CommentController {
             @RequestParam(defaultValue = "10") @Positive Integer size) {
         return service.getAll(from, size);
     }
+
+    @PatchMapping("/user/{userId}/comment/{commentId}")
+    public CommentDto update(@PathVariable @Positive Long userId,
+                             @PathVariable Long commentId,
+                             @Valid @RequestBody UpdateCommentDto updateCommentDto) {
+        log.info("PATCH: Обновление комментария (Id={}) пользователем (Id={})", commentId, userId);
+        return service.updateComment(commentId, userId, updateCommentDto);
+    }
+
 }
