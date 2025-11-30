@@ -14,14 +14,11 @@
 					"listen": "prerequest",
 					"script": {
 						"exec": [
-							"function sleep(ms) {\r",
-							"    return new Promise(resolve => setTimeout(resolve, ms));\r",
-							"}\r",
-							"\r",
 							"const main = async () => {\r",
 							"    const api = new API(pm);\r",
 							"    const rnd = new RandomUtils();\r",
 							"\r",
+							"    pm.collectionVariables.set(\"baseUrl\", \"http://localhost:8080\");\r",
 							"    let comment;\r",
 							"    try {\r",
 							"        const user = await api.addUser(rnd.getUser());\r",
