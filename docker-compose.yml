@@ -2,7 +2,7 @@ services:
   stats-server:
     ports:
       - "9090:9090"
-    build: ./stat-service/stat-server
+    build: ./stats/stat-server
     image: stats-server-image
     container_name: stats-server
     depends_on:
@@ -26,7 +26,7 @@ services:
   main-service:
     ports:
       - "8080:8080"
-    build: ./main-service
+    build: ./core/main-service
     image: main-service-image
     container_name: main-service
     depends_on:
@@ -47,4 +47,7 @@ services:
       - POSTGRES_PASSWORD=user
     ports:
       - "5432:5432"
+
+
+
 
