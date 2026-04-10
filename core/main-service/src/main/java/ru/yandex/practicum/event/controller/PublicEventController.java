@@ -34,6 +34,8 @@ public class PublicEventController {
         log.info("GET /events: text={}, categories={}, paid={}, sort={}, from={}, size={}",
                 text, categories, paid, sort, from, size);
 
+        client.hit(request);
+
         log.warn("HIT Public  КОНТРОЛЛЕРА РАБОТАЕТ");
 
         return eventService.getEventsByPublic(text, categories, paid, rangeStart,
@@ -43,6 +45,8 @@ public class PublicEventController {
     @GetMapping("/{id}")
     public EventResponseDto getEvent(@PathVariable Long id, HttpServletRequest request) {
         log.info("GET /events/{}", id);
+
+        client.hit(request);
 
         log.warn("HIT Public одного события  КОНТРОЛЛЕРА РАБОТАЕТ");
         return eventService.getEventById(id);

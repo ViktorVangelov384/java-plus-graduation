@@ -232,7 +232,11 @@ public class EventServiceImpl implements EventService {
         List<Event> events = eventsPage.getContent();
 
         for (Event event : events) {
-            event.setConfirmedRequests(0);
+            List<ParticipationRequest> requests = requestRepository.findAllByEventId(event.getId());
+            int confirmedCount = (int) requests.stream()
+                    .filter(r -> "CONFIRMED".equals(r.getStatus()))
+                    .count();
+            event.setConfirmedRequests(confirmedCount);
 
             Long views = getViewsClientForList(event);
             event.setViews(views);
@@ -260,9 +264,8 @@ public class EventServiceImpl implements EventService {
             event.setPublishedOn(LocalDateTime.now().minusDays(1));
         }
 
-        Long currentViews = event.getViews() == null ? 0L : event.getViews();
-        event.setViews(currentViews + 1);
-        eventRepository.save(event);
+        Long views = getViewsClient(event);
+        event.setViews(views);
 
         List<ParticipationRequest> requests = requestRepository.findAllByEventId(id);
         int confirmedCount = (int) requests.stream()
@@ -271,6 +274,7 @@ public class EventServiceImpl implements EventService {
 
         EventResponseDto responseDto = eventMapper.toEventResponseDto(event);
         responseDto.setConfirmedRequests(confirmedCount);
+        responseDto.setViews(views);
 
         return responseDto;
     }
@@ -334,7 +338,7 @@ public class EventServiceImpl implements EventService {
                     publishDate,
                     LocalDateTime.now(),
                     Collections.singletonList(uri),
-                    false
+                    true
             );
 
             Long totalViews = stats.stream().mapToLong(StatsResponseDto::getHits).sum();
@@ -345,6 +349,30 @@ public class EventServiceImpl implements EventService {
         } catch (Exception e) {
             log.error("Ошибка при получении статистики для списка: {}", e.getMessage());
             return event.getViews() != null ? event.getViews() : 0L;
+        }
+    }
+
+    private Long getViewsClient(Event event) {
+        try {
+            String uri = "/events/" + event.getId();
+            LocalDateTime startDate = event.getPublishedOn() != null
+                    ? event.getPublishedOn()
+                    : LocalDateTime.now().minusMonths(1);
+
+            List<StatsResponseDto> stats = client.getStats(
+                    startDate,
+                    LocalDateTime.now(),
+                    Collections.singletonList(uri),
+                    true
+            );
+
+            Long views = stats.stream().mapToLong(StatsResponseDto::getHits).sum();
+            log.info("Получены просмотры для события {}: {}", event.getId(), views);
+            return views;
+
+        } catch (Exception e) {
+            log.error("Ошибка при получении просмотров для события {}: {}", event.getId(), e.getMessage());
+            return 0L;
         }
     }
 }

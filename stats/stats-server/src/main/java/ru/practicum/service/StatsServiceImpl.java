@@ -10,7 +10,6 @@ import ru.practicum.mapper.StatsMapper;
 import ru.practicum.model.Stats;
 import ru.practicum.storage.StatRepository;
 
-import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -40,15 +39,12 @@ public class StatsServiceImpl implements StatsService {
                                            LocalDateTime end,
                                            List<String> uris,
                                            boolean unique) {
-        if (start == null) {
-            start = LocalDateTime.now().minusDays(30);
-        }
-        if (end == null) {
-            end = LocalDateTime.now();
+        if (start == null || end == null) {
+            throw new IllegalArgumentException("Start и end dates обязательны");
         }
 
         if (end.isBefore(start)) {
-            throw new DateTimeException("Дата окончания не может быть раньше даты начала");
+            throw new IllegalArgumentException("Дата окончания не может быть раньше даты начала");
         }
 
         if (uris == null || uris.isEmpty()) {

@@ -1,5 +1,6 @@
 package ru.yandex.practicum.event.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.constraints.*;
@@ -27,6 +28,7 @@ public class EventResponseDto {
     private Integer confirmedRequests;
 
     @NotNull(message = "Дата создания не может быть null")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdOn;
 
     @NotBlank(message = "Описание не может быть пустым")
