@@ -26,8 +26,8 @@ import ru.practicum.event.mapper.EventMapper;
 import ru.practicum.event.model.Event;
 import ru.practicum.event.model.EventLocation;
 import ru.practicum.event.storage.EventRepository;
-import ru.yandex.practicum.client.StatsClient;
-import ru.yandex.practicum.dto.StatsResponseDto;
+import ru.practicum.ewm.stats.proto.event.RecommendedEventProto;
+import ru.practicum.stats.client.AnalyzerGrpcClient;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -43,9 +43,9 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final CategoryRepository categoryRepository;
     private final EventMapper eventMapper;
-    private final StatsClient statsClient;
     private final RequestClient requestClient;
     private final UserClient userClient;
+    private final AnalyzerGrpcClient analyzerClient;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
@@ -298,22 +298,22 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Событие с id=" + id + " не найдено");
         }
 
-        if (event.getPublishedOn() == null) {
-            log.warn("Событие {} опубликовано, но publishedOn is null", id);
-            event.setPublishedOn(LocalDateTime.now().minusDays(1));
+        try {
+            int confirmedCount = requestClient.getCountConfirmedRequestsByEventId(id);
+            event.setConfirmedRequests(confirmedCount);
+
+            Long views = getViewsClient(event);
+            event.setViews(views);
+
+            eventRepository.save(event);
+        } catch (Exception e) {
+            log.warn("Error getting stats for event {}: {}", id, e.getMessage());
+
         }
 
-        int confirmedCount = requestClient.getCountConfirmedRequestsByEventId(id);
-        event.setConfirmedRequests(confirmedCount);
-
-        Long views = getViewsClient(event);
-        event.setViews(views);
-
-        eventRepository.save(event);
-
         EventResponseDto responseDto = eventMapper.toEventResponseDto(event);
-        responseDto.setConfirmedRequests(confirmedCount);
-        responseDto.setViews(views);
+        responseDto.setConfirmedRequests(event.getConfirmedRequests());
+        responseDto.setViews(event.getViews());
 
         return responseDto;
     }
@@ -372,13 +372,6 @@ public class EventServiceImpl implements EventService {
         ).collect(Collectors.toList());
     }
 
-    private List<Event> applyViewsToEvents(List<Event> events) {
-        return events.stream().peek(event -> {
-            Long views = getViewsClient(event);
-            event.setViews(views);
-        }).collect(Collectors.toList());
-    }
-
     private Pageable createPageable(String sort, int from, int size) {
         validatePaginationParams(from, size);
 
@@ -409,25 +402,39 @@ public class EventServiceImpl implements EventService {
 
     private Long getViewsClient(Event event) {
         try {
-            String uri = "/events/" + event.getId();
-            LocalDateTime startDate = event.getPublishedOn() != null
-                    ? event.getPublishedOn()
-                    : LocalDateTime.now().minusMonths(1);
-
-            List<StatsResponseDto> stats = statsClient.getStats(
-                    startDate,
-                    LocalDateTime.now(),
-                    Collections.singletonList(uri),
-                    true
-            );
-
-            Long views = stats.stream().mapToLong(StatsResponseDto::getHits).sum();
-            log.info("Получены просмотры для события {}: {}", event.getId(), views);
-            return views;
-
+            return analyzerClient.getInteractionsCount(List.of(event.getId()))
+                    .findFirst()
+                    .map(RecommendedEventProto::getScore)
+                    .orElse(0.0)
+                    .longValue();
         } catch (Exception e) {
             log.error("Ошибка при получении просмотров для события {}: {}", event.getId(), e.getMessage());
             return 0L;
         }
+    }
+
+    private List<Event> applyViewsToEvents(List<Event> events) {
+        if (events.isEmpty()) {
+            return events;
+        }
+
+        List<Long> eventIds = events.stream().map(Event::getId).toList();
+        Map<Long, Long> viewsMap = new HashMap<>();
+
+        try {
+            viewsMap = analyzerClient.getInteractionsCount(eventIds)
+                    .collect(Collectors.toMap(
+                            RecommendedEventProto::getEventId,
+                            proto -> (long) proto.getScore(),
+                            (a, b) -> a
+                    ));
+        } catch (Exception e) {
+            log.warn("Failed to get views for events: {}", e.getMessage());
+        }
+
+        final Map<Long, Long> finalViewsMap = viewsMap;
+        return events.stream().peek(event ->
+                event.setViews(finalViewsMap.getOrDefault(event.getId(), 0L))
+        ).collect(Collectors.toList());
     }
 }
