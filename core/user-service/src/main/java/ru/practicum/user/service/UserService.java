@@ -17,6 +17,6 @@ public interface UserService {
 
     void checkUserExists(Long id);
 
-    public List<UserShortDto> getUsersByIds(List<Long> ids);
+    List<UserShortDto> getUsersByIds(List<Long> ids);
 
 }

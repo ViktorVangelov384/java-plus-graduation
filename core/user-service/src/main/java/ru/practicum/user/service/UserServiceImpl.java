@@ -11,6 +11,7 @@ import org.springframework.util.CollectionUtils;
 import ru.practicum.dto.user.UserShortDto;
 import ru.practicum.user.dto.*;
 import ru.practicum.user.exception.DataAlreadyInUseException;
+import ru.practicum.user.exception.NotFoundException;
 import ru.practicum.user.exception.ValidationException;
 import ru.practicum.user.mapper.UserMapper;
 import ru.practicum.user.model.User;
@@ -62,7 +63,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void checkUserExists(Long id) {
         if (!userRepository.existsById(id)) {
-            throw new RuntimeException("User with id = " + id + " not found.");
+            throw new NotFoundException("User with id = " + id + " not found.");
         }
     }
 
@@ -88,7 +89,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void deleteUser(long userId) {
         if (!userRepository.existsById(userId)) {
-            throw new RuntimeException("User with id = " + userId + " not found.");
+            throw new NotFoundException("User with id = " + userId + " not found.");
         }
         userRepository.deleteById(userId);
     }
@@ -104,6 +105,6 @@ public class UserServiceImpl implements UserService {
 
     private User findById(long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User with id = " + userId + " not found."));
+                .orElseThrow(() -> new NotFoundException("User with id = " + userId + " not found."));
     }
 }

@@ -14,7 +14,5 @@ public interface UserMapper {
     @Mapping(target = "id", ignore = true)
     User toUser(UserRequestDto request);
 
-    UserDto toUserDto(User user);
-
     UserShortDto toUserShortDto(User user);
 }

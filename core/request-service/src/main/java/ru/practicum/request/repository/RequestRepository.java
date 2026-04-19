@@ -13,15 +13,9 @@ import java.util.Optional;
 
 public interface RequestRepository extends JpaRepository<Request, Long> {
 
-    Optional<Request> findByEventIdAndRequesterId(Long eventId, Long userId);
-
-    List<Request> findAllByEventIdAndStatus(Long eventId, RequestStatus status);
-
     List<Request> findAllByRequesterId(Long requesterId);
 
     List<Request> findAllByEventId(Long eventId);
-
-    List<Request> findAllByIdIn(List<Long> ids);
 
     @Query("SELECT COUNT(r) FROM Request r WHERE r.eventId = :eventId AND r.status = 'CONFIRMED'")
     int findCountOfConfirmedRequestsByEventId(@Param("eventId") Long eventId);

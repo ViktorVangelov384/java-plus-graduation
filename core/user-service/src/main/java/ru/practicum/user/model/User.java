@@ -21,13 +21,9 @@ public class User {
     private Long id;
 
     @Column(nullable = false)
-    @NotBlank(message = "User: Поле name не может быть пустым")
-    @Size(min = 2, max = 255)
     private String name;
 
     @Column(unique = true, nullable = false)
-    @NotBlank(message = "User: Поле email не может быть пустым")
     @Email
-    @Size(min = 5, max = 255)
     private String email;
 }

@@ -202,7 +202,7 @@ public class RequestServiceImpl implements RequestService {
 
     @Transactional
     protected Request saveRequest(EventForRequestDto event, long userId) {
-        RequestStatus status = RequestStatus.PENDING;
+        RequestStatus status;
 
         int currentConfirmed = getConfirmedRequestsCount(event.getId());
         int participantLimit = event.getParticipantLimit();
