@@ -184,7 +184,7 @@ public class RequestServiceImpl implements RequestService {
                 .orElseThrow(() -> new NotFoundException(
                         String.format("Запрос на участие в событии с id запроса=%d не найден", requestId)));
 
-        if (request.getRequesterId() != userId) {
+        if (!request.getRequesterId().equals(userId)) {
             throw new ConditionsNotMetException("Пользователь не является участником в запросе на участие в событии");
         }
 

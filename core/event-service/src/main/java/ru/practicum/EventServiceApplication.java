@@ -7,7 +7,7 @@ import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
 @ComponentScan(basePackages = {"ru.practicum", "ru.yandex.practicum"})
-@EnableFeignClients(basePackages = {"ru.practicum.client", "ru.yandex.practicum.client"})
+@EnableFeignClients(basePackages = {"ru.practicum.client", "ru.yandex.practicum.client", "ru.practicum.grpc.client"})
 public class EventServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(EventServiceApplication.class, args);

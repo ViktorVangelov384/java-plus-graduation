@@ -48,3 +48,15 @@ services:
       - POSTGRES_PASSWORD=user
     ports:
       - "5432:5432"
+
+
+  analyzer-db:
+    image: postgres:16.1
+    container_name: analyzer-db
+    restart: always
+    environment:
+      - POSTGRES_DB=analyzer_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=user
+    ports:
+      - "5433:5432"

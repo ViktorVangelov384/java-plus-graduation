@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import ru.practicum.event.dto.EventResponseDto;
 import ru.practicum.event.dto.EventUpdateRequestDto;
 import ru.practicum.event.service.EventService;
-import ru.yandex.practicum.client.StatsClientService;
-import ru.yandex.practicum.dto.StatDto;
+import ru.practicum.stats.client.ActionType;
+import ru.practicum.stats.client.CollectorGrpcClient;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -22,7 +22,7 @@ import java.util.List;
 @RequestMapping("/admin/events")
 public class AdminEventController {
     private final EventService eventService;
-    private final StatsClientService statsClientService;
+    private final CollectorGrpcClient collectorClient;
 
     @GetMapping
     public List<EventResponseDto> getEvents(
@@ -37,17 +37,15 @@ public class AdminEventController {
         log.info("GET /admin/events: users={}, states={}, categories={}, rangeStart={}, rangeEnd={}",
                 users, states, categories, rangeStart, rangeEnd);
 
-        StatDto statDto = StatDto.builder()
-                .uri(request.getRequestURI())
-                .ip(request.getRemoteAddr())
-                .timestamp(LocalDateTime.now())
-                .app("ewm-main-service")
-                .build();
-
         String rangeStartStr = rangeStart != null ? rangeStart.format(DateTimeFormatter.ISO_DATE_TIME) : null;
         String rangeEndStr = rangeEnd != null ? rangeEnd.format(DateTimeFormatter.ISO_DATE_TIME) : null;
 
-        statsClientService.hit(statDto);
+        try {
+            collectorClient.sendUserAction(0L, 0L, ActionType.ACTION_VIEW);
+        } catch (Exception e) {
+            log.warn("Stats server unavailable: {}", e.getMessage());
+        }
+
         return eventService.getEventsByAdmin(users, states, categories, rangeStartStr, rangeEndStr, from, size);
     }
 
